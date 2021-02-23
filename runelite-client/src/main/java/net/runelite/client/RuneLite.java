@@ -33,6 +33,8 @@ import com.google.inject.Injector;
 import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
+import java.net.Authenticator;
+import java.net.PasswordAuthentication;
 import java.nio.file.Paths;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -199,6 +201,10 @@ public class RuneLite
 		parser.accepts("yPos", "Set the client y position when logging in").withRequiredArg();
 		parser.accepts("startupTitle", "Set the title name on startup for AHK use").withRequiredArg();
 
+		final ArgumentAcceptingOptionSpec<String> proxyInfo = parser
+				.accepts("proxy")
+				.withRequiredArg().ofType(String.class);
+
 		final ArgumentAcceptingOptionSpec<File> sessionfile = parser.accepts("sessionfile", "Use a specified session file")
 				.withRequiredArg()
 				.withValuesConvertedBy(new ConfigFileConverter())
@@ -236,6 +242,36 @@ public class RuneLite
 		{
 			final Logger logger = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
 			logger.setLevel(Level.DEBUG);
+		}
+
+		if (options.has("proxy"))
+		{
+			String[] proxy = options.valueOf(proxyInfo).split(":");
+
+			if (proxy.length >= 2)
+			{
+				System.setProperty("socksProxyHost", proxy[0]);
+				System.setProperty("socksProxyPort", proxy[1]);
+			}
+
+			if (proxy.length >= 4)
+			{
+				System.setProperty("java.net.socks.username", proxy[2]);
+				System.setProperty("java.net.socks.password", proxy[3]);
+
+				final String user = proxy[2];
+				final char[] pass = proxy[3].toCharArray();
+
+				Authenticator.setDefault(new Authenticator()
+				{
+					private final PasswordAuthentication auth = new PasswordAuthentication(user, pass);
+
+					protected PasswordAuthentication getPasswordAuthentication()
+					{
+						return auth;
+					}
+				});
+			}
 		}
 
 
