@@ -59,33 +59,20 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.client.account.SessionManager;
-import net.runelite.client.callback.Hooks;
-import net.runelite.client.chat.ChatMessageManager;
-import net.runelite.client.chat.CommandManager;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.discord.DiscordService;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.externalplugins.ExternalPluginManager;
-import net.runelite.client.game.FriendChatManager;
-import net.runelite.client.game.ItemManager;
-import net.runelite.client.game.LootManager;
-import net.runelite.client.game.chatbox.ChatboxPanelManager;
-import net.runelite.client.menus.MenuManager;
 import net.runelite.client.plugins.PluginManager;
-import net.runelite.client.plugins.autoaccount.AutoAccountConfig;
 import net.runelite.client.rs.ClientLoader;
 import net.runelite.client.rs.ClientUpdateCheckMode;
 import net.runelite.client.ui.ClientUI;
-import net.runelite.client.ui.DrawManager;
 import net.runelite.client.ui.FatalErrorDialog;
 import net.runelite.client.ui.SplashScreen;
 import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.client.ui.overlay.OverlayRenderer;
 import net.runelite.client.ui.overlay.WidgetOverlay;
-import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
 import net.runelite.client.ui.overlay.tooltip.TooltipOverlay;
 import net.runelite.client.ui.overlay.worldmap.WorldMapOverlay;
-import net.runelite.client.ws.PartyService;
 import net.runelite.http.api.RuneLiteAPI;
 import okhttp3.Cache;
 import okhttp3.OkHttpClient;
@@ -122,9 +109,6 @@ public class RuneLite
 	private ConfigManager configManager;
 
 	@Inject
-	private DrawManager drawManager;
-
-	@Inject
 	private SessionManager sessionManager;
 
 	@Inject
@@ -137,49 +121,13 @@ public class RuneLite
 	private ClientUI clientUI;
 
 	@Inject
-	private Provider<InfoBoxManager> infoBoxManager;
-
-	@Inject
 	private OverlayManager overlayManager;
-
-	@Inject
-	private Provider<PartyService> partyService;
-
-	@Inject
-	private Provider<ItemManager> itemManager;
-
-	@Inject
-	private Provider<OverlayRenderer> overlayRenderer;
-
-	@Inject
-	private Provider<FriendChatManager> friendsChatManager;
-
-	@Inject
-	private Provider<ChatMessageManager> chatMessageManager;
-
-	@Inject
-	private Provider<MenuManager> menuManager;
-
-	@Inject
-	private Provider<CommandManager> commandManager;
 
 	@Inject
 	private Provider<TooltipOverlay> tooltipOverlay;
 
 	@Inject
 	private Provider<WorldMapOverlay> worldMapOverlay;
-
-	@Inject
-	private Provider<LootManager> lootManager;
-
-	@Inject
-	private Provider<ChatboxPanelManager> chatboxPanelManager;
-
-	@Inject
-	private Provider<Hooks> hooks;
-
-	@Inject
-	private AutoAccountConfig autoAccountConfig;
 
 	@Inject
 	@Nullable
@@ -201,33 +149,33 @@ public class RuneLite
 		parser.accepts("yPos", "Set the client y position when logging in").withRequiredArg();
 		parser.accepts("startupTitle", "Set the title name on startup for AHK use").withRequiredArg();
 
+		final ArgumentAcceptingOptionSpec<File> sessionfile = parser.accepts("sessionfile", "Use a specified session file")
+			.withRequiredArg()
+			.withValuesConvertedBy(new ConfigFileConverter())
+			.defaultsTo(DEFAULT_SESSION_FILE);
+
 		final ArgumentAcceptingOptionSpec<String> proxyInfo = parser
 				.accepts("proxy")
 				.withRequiredArg().ofType(String.class);
 
-		final ArgumentAcceptingOptionSpec<File> sessionfile = parser.accepts("sessionfile", "Use a specified session file")
-				.withRequiredArg()
-				.withValuesConvertedBy(new ConfigFileConverter())
-				.defaultsTo(DEFAULT_SESSION_FILE);
-
 		final ArgumentAcceptingOptionSpec<File> configfile = parser.accepts("config", "Use a specified config file")
-				.withRequiredArg()
-				.withValuesConvertedBy(new ConfigFileConverter())
-				.defaultsTo(DEFAULT_CONFIG_FILE);
+			.withRequiredArg()
+			.withValuesConvertedBy(new ConfigFileConverter())
+			.defaultsTo(DEFAULT_CONFIG_FILE);
 
 		final ArgumentAcceptingOptionSpec<ClientUpdateCheckMode> updateMode = parser
-				.accepts("rs", "Select client type")
-				.withRequiredArg()
-				.ofType(ClientUpdateCheckMode.class)
-				.defaultsTo(ClientUpdateCheckMode.AUTO)
-				.withValuesConvertedBy(new EnumConverter<ClientUpdateCheckMode>(ClientUpdateCheckMode.class)
+			.accepts("rs", "Select client type")
+			.withRequiredArg()
+			.ofType(ClientUpdateCheckMode.class)
+			.defaultsTo(ClientUpdateCheckMode.AUTO)
+			.withValuesConvertedBy(new EnumConverter<ClientUpdateCheckMode>(ClientUpdateCheckMode.class)
+			{
+				@Override
+				public ClientUpdateCheckMode convert(String v)
 				{
-					@Override
-					public ClientUpdateCheckMode convert(String v)
-					{
-						return super.convert(v.toUpperCase());
-					}
-				});
+					return super.convert(v.toUpperCase());
+				}
+			});
 
 		parser.accepts("help", "Show this text").forHelp();
 		OptionSet options = parser.parse(args);
@@ -274,9 +222,6 @@ public class RuneLite
 			}
 		}
 
-
-		boolean customConfig = options.has("config");
-
 		Thread.setDefaultUncaughtExceptionHandler((thread, throwable) ->
 		{
 			log.error("Uncaught exception:", throwable);
@@ -287,7 +232,7 @@ public class RuneLite
 		});
 
 		OkHttpClient.Builder okHttpClientBuilder = RuneLiteAPI.CLIENT.newBuilder()
-				.cache(new Cache(new File(CACHE_DIR, "okhttp"), MAX_OKHTTP_CACHE_SIZE));
+			.cache(new Cache(new File(CACHE_DIR, "okhttp"), MAX_OKHTTP_CACHE_SIZE));
 
 		final boolean insecureSkipTlsVerification = options.has("insecure-skip-tls-verification");
 		if (insecureSkipTlsVerification || RuneLiteProperties.isInsecureSkipTlsVerification())
@@ -319,9 +264,9 @@ public class RuneLite
 				if (!assertions)
 				{
 					SwingUtilities.invokeLater(() ->
-							new FatalErrorDialog("Developers should enable assertions; Add `-ea` to your JVM arguments`")
-									.addBuildingGuide()
-									.open());
+						new FatalErrorDialog("Developers should enable assertions; Add `-ea` to your JVM arguments`")
+							.addBuildingGuide()
+							.open());
 					return;
 				}
 			}
@@ -329,8 +274,8 @@ public class RuneLite
 			PROFILES_DIR.mkdirs();
 
 			log.info("RuneLite {} (launcher version {}) starting up, args: {}",
-					RuneLiteProperties.getVersion(), RuneLiteProperties.getLauncherVersion() == null ? "unknown" : RuneLiteProperties.getLauncherVersion(),
-					args.length == 0 ? "none" : String.join(" ", args));
+				RuneLiteProperties.getVersion(), RuneLiteProperties.getLauncherVersion() == null ? "unknown" : RuneLiteProperties.getLauncherVersion(),
+				args.length == 0 ? "none" : String.join(" ", args));
 
 			final long start = System.currentTimeMillis();
 
@@ -360,8 +305,8 @@ public class RuneLite
 		{
 			log.error("Failure during startup", e);
 			SwingUtilities.invokeLater(() ->
-					new FatalErrorDialog("RuneLite has encountered an unexpected error during startup.")
-							.open());
+				new FatalErrorDialog("RuneLite has encountered an unexpected error during startup.")
+					.open());
 		}
 		finally
 		{
@@ -419,27 +364,11 @@ public class RuneLite
 		eventBus.register(pluginManager);
 		eventBus.register(externalPluginManager);
 		eventBus.register(overlayManager);
-		eventBus.register(drawManager);
 		eventBus.register(configManager);
 		eventBus.register(discordService);
 
 		if (!isOutdated)
 		{
-			// Initialize chat colors
-			chatMessageManager.get().loadColors();
-
-			eventBus.register(infoBoxManager.get());
-			eventBus.register(partyService.get());
-			eventBus.register(overlayRenderer.get());
-			eventBus.register(friendsChatManager.get());
-			eventBus.register(itemManager.get());
-			eventBus.register(menuManager.get());
-			eventBus.register(chatMessageManager.get());
-			eventBus.register(commandManager.get());
-			eventBus.register(lootManager.get());
-			eventBus.register(chatboxPanelManager.get());
-			eventBus.register(hooks.get());
-
 			// Add core overlays
 			WidgetOverlay.createOverlays(client).forEach(overlayManager::add);
 			overlayManager.add(worldMapOverlay.get());
@@ -468,8 +397,8 @@ public class RuneLite
 			final File file;
 
 			if (Paths.get(fileName).isAbsolute()
-					|| fileName.startsWith("./")
-					|| fileName.startsWith(".\\"))
+				|| fileName.startsWith("./")
+				|| fileName.startsWith(".\\"))
 			{
 				file = new File(fileName);
 			}
