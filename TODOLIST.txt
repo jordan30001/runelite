@@ -1,0 +1,28 @@
+Plugin name:
+Chess (Config file)
+
+PART 1
+Chessboard start coordinate position option
+Generate chessboard from current location
+
+Coordinates are:
+X,Y,Z
+
+Get location of character position (developer mode Location)
+Tile marker brushes plugin
+
+PART 2
+Convert coordinates to chess tiles (krazune knows function that does automatically)
+
+PART 3
+Read chatbox in Runescape (chat notifier plugin)
+Filter chatbox for certain users (enter username to search for)
+
+PART 4
+Analyze chatbox message figure out if the move is correct
+Notify account which is on certain tile & highlight tile to move to
+Brush marker plugin
+Optional: Figure out if the entered move is a legit move
+
+PART 5
+Generate groundmarkers ABCDEFGH 12345678 based on character position
