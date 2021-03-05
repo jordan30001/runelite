@@ -80,6 +80,10 @@ public class ChessOverlay extends Overlay
 // 		JORDAN#1
 //		byte[] pixels = ((DataBufferByte) bufferedImage.getRaster().getDataBuffer()).getData(); or int[] pixels = ((DataBufferInt) bufferedImage.getRaster().getDataBuffer()).getData();
 		final Collection<ColorTileMarker> points = plugin.getPoints();
+		BufferedImage image = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(), BufferedImage.TYPE_4BYTE_ABGR);
+		Graphics g = image.getGraphics();
+		g.setColor(Color.GREEN);
+
 		for (final ColorTileMarker point : points)
 		{
 			WorldPoint worldPoint = point.getWorldPoint();
@@ -95,13 +99,10 @@ public class ChessOverlay extends Overlay
 //				tileColor = config.markerColor();
 //			}
 
-			drawTile(graphics, worldPoint, tileColor, point.getLabel());
+			drawTile((Graphics2D)g, worldPoint, tileColor, point.getLabel());
 		}
 
-		BufferedImage image = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(), BufferedImage.TYPE_4BYTE_ABGR);
-		Graphics g = image.getGraphics();
 
-		g.setColor(Color.GREEN);
 		g.fillRect(0, 0, image.getWidth(), image.getHeight());
 
 		Polygon[] polygons = client.getLocalPlayer().getPolygons();
@@ -114,7 +115,7 @@ public class ChessOverlay extends Overlay
 			}
 		}
 
-//		graphics.drawImage(image, 0, 0, null);
+		graphics.drawImage(image, 0, 0, null);
 		return null;
 	}
 
@@ -232,11 +233,11 @@ public class ChessOverlay extends Overlay
 			graphics.setColor(color);
 			final Stroke originalStroke = graphics.getStroke();
 			final Color originalColor = graphics.getColor();
-			graphics.setStroke(new BasicStroke(2));
+//			graphics.setStroke(new BasicStroke(2));
 			graphics.draw(poly);
 			graphics.setColor(originalColor);
 			graphics.fill(poly);
-			graphics.setStroke(originalStroke);
+//			graphics.setStroke(originalStroke);
 		}
 
 		if (!Strings.isNullOrEmpty(label))
