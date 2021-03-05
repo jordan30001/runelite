@@ -313,11 +313,10 @@ public class ChessPlugin extends Plugin
 
 		List<ChessMarkerPoint> chessMarkerPoints = new ArrayList<>(getPoints(regionId));
 
-		List<ChessMarkerPoint> chessTiles = new ArrayList<ChessMarkerPoint>();
+		List<ChessMarkerPoint> chessTiles = new ArrayList<>();
 
 		for (int y=0;y<10;y++)
 		{
-			// If y = 1 or y = 9 LABEL TILE SET OPACITY to 0 & set color to white
 			for(int x=0;x<10;x++)
 			{
 				chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX()+x, worldPoint.getRegionY()+y, client.getPlane(), WhatColor(x,y), WhatLabel(x,y)));
@@ -339,37 +338,5 @@ public class ChessPlugin extends Plugin
 		savePoints(regionId, chessMarkerPoints);
 
 		loadPoints();
-	}
-
-	private void labelTile(Tile tile)
-	{
-		LocalPoint localPoint = tile.getLocalLocation();
-		WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, localPoint);
-		final int regionId = worldPoint.getRegionID();
-
-		ChessMarkerPoint searchPoint = new ChessMarkerPoint(regionId, worldPoint.getRegionX(), worldPoint.getRegionY(), client.getPlane(), null, null);
-		Collection<ChessMarkerPoint> points = getPoints(regionId);
-		ChessMarkerPoint existing = points.stream()
-				.filter(p -> p.equals(searchPoint))
-				.findFirst().orElse(null);
-		if (existing == null)
-		{
-			return;
-		}
-
-		chatboxPanelManager.openTextInput("Tile label")
-				.value(Optional.ofNullable(existing.getLabel()).orElse(""))
-				.onDone((input) ->
-				{
-					input = Strings.emptyToNull(input);
-
-					ChessMarkerPoint newPoint = new ChessMarkerPoint(regionId, worldPoint.getRegionX(), worldPoint.getRegionY(), client.getPlane(), existing.getColor(), input);
-					points.remove(searchPoint);
-					points.add(newPoint);
-					savePoints(regionId, points);
-
-					loadPoints();
-				})
-				.build();
 	}
 }

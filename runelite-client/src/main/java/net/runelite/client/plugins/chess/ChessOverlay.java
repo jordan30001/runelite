@@ -27,6 +27,7 @@ package net.runelite.client.plugins.chess;
 
 import com.google.common.base.Strings;
 import net.runelite.api.Client;
+import net.runelite.api.Model;
 import net.runelite.api.Perspective;
 import net.runelite.api.Point;
 import net.runelite.api.coords.LocalPoint;
@@ -34,35 +35,50 @@ import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.plugins.chess.ColorTileMarker;
 import net.runelite.client.plugins.chess.ChessConfig;
 import net.runelite.client.plugins.chess.ChessPlugin;
+import net.runelite.client.plugins.chess.Triangle;
+import net.runelite.client.plugins.chess.Vertex;
 import net.runelite.client.ui.overlay.*;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.awt.image.DataBufferInt;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 public class ChessOverlay extends Overlay
 {
-	private static final int MAX_DRAW_DISTANCE = 32;
-
 	private final Client client;
 	private final ChessConfig config;
 	private final ChessPlugin plugin;
 
+
 	@Inject
-	private ChessOverlay(Client client, ChessConfig config, ChessPlugin plugin)
-	{
+	public ChessOverlay(Client client, ChessPlugin plugin, ChessConfig config) {
+		super(plugin);
+		setPosition(OverlayPosition.DYNAMIC);
+		setLayer(OverlayLayer.ABOVE_SCENE);
 		this.client = client;
 		this.config = config;
 		this.plugin = plugin;
-		setPosition(OverlayPosition.DYNAMIC);
-		setPriority(OverlayPriority.LOW);
-		setLayer(OverlayLayer.ABOVE_SCENE);
 	}
 
 	@Override
-	public Dimension render(Graphics2D graphics)
-	{
+	public Dimension render(Graphics2D graphics) {
+//		Jordan30001: and all world objects
+//		Jordan30001: depending on what type of buffered image it is you can get the pixel data either with
+//		Jordan30001: byte[] pixels = ((DataBufferByte) bufferedImage.getRaster().getDataBuffer()).getData(); or int[] pixels = ((DataBufferInt) bufferedImage.getRaster().getDataBuffer()).getData();
+//		Jordan30001: because the greenscreen plugin i noticed uses a lot of img.setRGB() which is extremely slow than setting pixels directly on the databuffer
+//		Jordan30001: those are two different lines
+//		Jordan30001: so if you create a buffered image which needs alpha you would create a new buffered image with the TYPE_INT_ARGB
+//		Jordan30001: once you have the buffered image you can then directly pull out the int pixel values with int[] pixels = ((DataBufferInt) bufferedImage.getRaster().getDataBuffer()).getData();
+
+//		int[] pixels = ((DataBufferInt) bufferedImage.getRaster().getDataBuffer()).getData();
+// 		JORDAN#1
+//		byte[] pixels = ((DataBufferByte) bufferedImage.getRaster().getDataBuffer()).getData(); or int[] pixels = ((DataBufferInt) bufferedImage.getRaster().getDataBuffer()).getData();
 		final Collection<ColorTileMarker> points = plugin.getPoints();
 		for (final ColorTileMarker point : points)
 		{
@@ -82,8 +98,118 @@ public class ChessOverlay extends Overlay
 			drawTile(graphics, worldPoint, tileColor, point.getLabel());
 		}
 
+		BufferedImage image = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(), BufferedImage.TYPE_4BYTE_ABGR);
+		Graphics g = image.getGraphics();
+
+		g.setColor(Color.GREEN);
+		g.fillRect(0, 0, image.getWidth(), image.getHeight());
+
+		Polygon[] polygons = client.getLocalPlayer().getPolygons();
+		Triangle[] triangles = getTriangles(client.getLocalPlayer().getModel());
+
+		for (int i = 0; i < polygons.length; i++) {
+			Triangle t = triangles[i];
+			if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
+				clearPolygon(image, polygons[i]);
+			}
+		}
+
+//		graphics.drawImage(image, 0, 0, null);
 		return null;
 	}
+
+	private void clearPolygon(BufferedImage image, Polygon p) {
+		Rectangle bounds = p.getBounds();
+		for (double y = bounds.getMinY(); y < bounds.getMaxY(); y++) {
+			for (double x = bounds.getMinX(); x < bounds.getMaxX(); x++) {
+				if (p.contains(x, y)
+						&& x >= 0
+						&& x < client.getCanvasWidth()
+						&& y >= 0
+						&& y < client.getCanvasHeight()
+				) {
+					image.setRGB((int)x, (int)y, 0x00000000);
+				}
+			}
+		}
+	}
+
+	private java.util.List<Vertex> getVertices(Model model)
+	{
+		int[] verticesX = model.getVerticesX();
+		int[] verticesY = model.getVerticesY();
+		int[] verticesZ = model.getVerticesZ();
+
+		int count = model.getVerticesCount();
+
+		java.util.List<Vertex> vertices = new ArrayList(count);
+
+		for (int i = 0; i < count; ++i)
+		{
+			Vertex v = new Vertex(
+					verticesX[i],
+					verticesY[i],
+					verticesZ[i]
+			);
+			vertices.add(v);
+		}
+
+		return vertices;
+	}
+
+	private Triangle[] getTriangles(Model model)
+	{
+		int[] trianglesX = model.getTrianglesX();
+		int[] trianglesY = model.getTrianglesY();
+		int[] trianglesZ = model.getTrianglesZ();
+
+		List<Vertex> vertices = getVertices(model);
+
+		int count = model.getTrianglesCount();
+		Triangle[] triangles = new Triangle[count];
+
+		for (int i = 0; i < count; ++i)
+		{
+			int triangleX = trianglesX[i];
+			int triangleY = trianglesY[i];
+			int triangleZ = trianglesZ[i];
+
+			Triangle triangle = new Triangle(
+					vertices.get(triangleX),
+					vertices.get(triangleY),
+					vertices.get(triangleZ)
+			);
+			triangles[i] = triangle;
+		}
+
+		return triangles;
+	}
+	private static final int MAX_DRAW_DISTANCE = 32;
+
+//	@Override
+//	public Dimension render(Graphics2D graphics)
+//	{
+//		final Collection<ColorTileMarker> points = plugin.getPoints();
+//		for (final ColorTileMarker point : points)
+//		{
+//			WorldPoint worldPoint = point.getWorldPoint();
+//			if (worldPoint.getPlane() != client.getPlane())
+//			{
+//				continue;
+//			}
+//
+//			Color tileColor = point.getColor();
+////			if (tileColor == null || !config.rememberTileColors())
+////			{
+////				// If this is an old tile which has no color, or rememberTileColors is off, use marker color
+////				tileColor = config.markerColor();
+////			}
+//
+//			drawTile(graphics, worldPoint, tileColor, point.getLabel());
+//		}
+//
+//		return null;
+//	}
 
 	private void drawTile(Graphics2D graphics, WorldPoint point, Color color, @Nullable String label)
 	{
