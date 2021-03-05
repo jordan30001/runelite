@@ -259,7 +259,11 @@ public class ChessPlugin extends Plugin
 
 
 	public Color WhatColor(int x, int y) {
-		if ( x % 2 == 0 && y % 2 == 0 || x == y)
+		if (x == 0 || x == 9)
+			return new Color(0,0,0,0);
+		else if (y == 0 || y == 9)
+			return new Color(0,0,0,0);
+		else if ( (x + y) % 2 == 0 )
 		{
 //			chessOverlay
 			return config.blackTileColor();
@@ -271,7 +275,7 @@ public class ChessPlugin extends Plugin
 	}
 
 	public String WhatLabel(int x, int y) {
-		if (y == 0)
+		if (y == 0 || y == 9)
 		{
 			if (x == 9)
 			{
@@ -279,7 +283,7 @@ public class ChessPlugin extends Plugin
 			}
 			return getCharForNumber(x);
 		}
-		if (x == 0)
+		if (x == 0 || x == 9)
 		{
 			if (y == 9)
 			{
