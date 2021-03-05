@@ -103,7 +103,21 @@ public class ChessOverlay extends Overlay
 		Polygon poly = Perspective.getCanvasTilePoly(client, lp);
 		if (poly != null)
 		{
-			OverlayUtil.renderPolygon(graphics, poly, color);
+			graphics.setColor(color);
+			final Stroke originalStroke = graphics.getStroke();
+			graphics.setStroke(new BasicStroke(2));
+			graphics.draw(poly);
+			if ( x % 2 == 0 && y % 2 == 0 || x == y)
+			{
+				graphics.setColor(new Color(0, 0, 0, 255));
+			}
+			else
+			{
+				graphics.setColor(new Color(255, 255, 255, 255));
+			}
+//			OverlayUtil.renderPolygon(graphics, poly, color);
+			graphics.fill(poly);
+			graphics.setStroke(originalStroke);
 		}
 
 		if (!Strings.isNullOrEmpty(label))

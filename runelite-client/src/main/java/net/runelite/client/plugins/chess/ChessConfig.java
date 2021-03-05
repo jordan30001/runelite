@@ -72,7 +72,7 @@ public interface ChessConfig extends Config
 	)
 	default Color blackTileColor()
 	{
-		return Color.BLACK;
+		return new Color (0,0,0,255);
 	}
 
 	@Alpha
@@ -84,6 +84,6 @@ public interface ChessConfig extends Config
 	)
 	default Color whiteTileColor()
 	{
-		return Color.WHITE;
+		return new Color (255,255,255,255);
 	}
 }

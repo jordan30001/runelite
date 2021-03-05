@@ -266,6 +266,32 @@ public class ChessPlugin extends Plugin
 		}
 	}
 
+	public String WhatLabel(int x, int y) {
+		if (y == 0)
+		{
+			if (x == 9)
+			{
+				return null;
+			}
+			return getCharForNumber(x);
+		}
+		if (x == 0)
+		{
+			if (y == 9)
+			{
+				return null;
+			}
+			return Integer.toString(y);
+		}
+		return null;
+	}
+
+	private String getCharForNumber(int i) {
+		return i > 0 && i < 27 ? String.valueOf((char)(i + 64)) : null;
+	}
+
+
+
 	private void markTile(LocalPoint localPoint)
 	{
 		if (localPoint == null)
@@ -283,9 +309,10 @@ public class ChessPlugin extends Plugin
 
 		for (int y=0;y<10;y++)
 		{
+			// If y = 1 or y = 9 LABEL TILE SET OPACITY to 0 & set color to white
 			for(int x=0;x<10;x++)
 			{
-				chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX()+x, worldPoint.getRegionY()+y, client.getPlane(), WhatColor(x,y), null));
+				chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX()+x, worldPoint.getRegionY()+y, client.getPlane(), WhatColor(x,y), WhatLabel(x,y)));
 			}
 		}
 
