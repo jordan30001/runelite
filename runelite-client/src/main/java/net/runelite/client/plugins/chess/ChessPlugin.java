@@ -76,6 +76,9 @@ public class ChessPlugin extends Plugin
 	private static final String REGION_PREFIX = "region_";
 	private static ChessMarkerPoint SW_Chess_Tile = null;
 
+	@Getter
+	private ChessOverlay chessOverlay;
+
 	@Getter(AccessLevel.PACKAGE)
 	private final List<net.runelite.client.plugins.chess.ColorTileMarker> points = new ArrayList<>();
 
@@ -258,6 +261,7 @@ public class ChessPlugin extends Plugin
 	public Color WhatColor(int x, int y) {
 		if ( x % 2 == 0 && y % 2 == 0 || x == y)
 		{
+//			chessOverlay
 			return config.blackTileColor();
 		}
 		else
