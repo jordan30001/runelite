@@ -40,6 +40,8 @@
 		<pmd.skip>true</pmd.skip>
 	</properties>
 
+	<repositories> <repository> <id>jcenter</id> <url>https://jcenter.bintray.com/</url> </repository> </repositories>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -281,6 +283,11 @@
 			<artifactId>mockwebserver</artifactId>
 			<version>3.7.0</version>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.github.twitch4j</groupId>
+			<artifactId>twitch4j</artifactId>
+			<version>1.2.1</version>
 		</dependency>
 	</dependencies>
 

@@ -116,6 +116,7 @@ public class ChessPlugin extends Plugin {
 	private Gson gson;
 	private LocalPoint localPoint;
 	private WorldPoint worldPoint;
+	private TwitchIntegration twitch;
 
 	void savePoints(int regionId, Collection<ChessMarkerPoint> points) {
 		if (points == null || points.isEmpty()) {
@@ -244,6 +245,12 @@ public class ChessPlugin extends Plugin {
 						Strings.isNullOrEmpty(allTypes.get(i)) ? null : allTypes.get(i));
 			}
 		}
+
+		//TODO: check if is streamer
+		if(twitch == null) {
+			twitch = new TwitchIntegration(config, this, overlay);
+			twitch.start();
+		}
 	}
 
 	@Subscribe
@@ -359,7 +366,7 @@ public class ChessPlugin extends Plugin {
 								String pieceType = ChessOverlay.usernameToType.getOrDefault(player.getName(), null);
 								if (pieceType == null)
 									continue;
-								if (doMark) {
+								if (doMark == false) {
 									player.setOverheadText(pieceType);
 								} else {
 									player.setOverheadText("");

@@ -31,9 +31,25 @@ import java.awt.*;
 
 @ConfigGroup("chess")
 public interface ChessConfig extends Config {
+    @ConfigSection(
+            name = "Streamer Settings",
+            description = "Streamer Settings",
+            position = 15,
+            closedByDefault = true
+    )
+    String streamerSettings = "Streamer Settings";
+
+    @ConfigSection(
+            name = "Chess Piece Settings",
+            description = "Chess Piece Settings",
+            position = 14,
+            closedByDefault = true
+    )
+    String chessPieceSettings = "Chess Piece Settings";
+
     @ConfigItem(
             keyName = "twitchPlayers",
-            name = "twitchPlayers",
+            name = "Twitch Players",
             description = "Define chess player username(s) sepparated by a comma here, this is required to let the plugin know which chat commands to read",
             position = 1
     )
@@ -43,7 +59,7 @@ public interface ChessConfig extends Config {
 
     @ConfigItem(
             keyName = "osrsPlayers",
-            name = "osrsPlayers",
+            name = "OSRS Players",
             description = "Define chess player username(s) sepparated by a comma here, this is required to let the plugin know which chat commands to read",
             position = 2
     )
@@ -55,7 +71,8 @@ public interface ChessConfig extends Config {
             keyName = "chessPieceUsernames",
             name = "chessPieceUsernames",
             description = "Define chess piece username(s) sepparated by a comma here, this is required to let the plugin know which username is a chess piece",
-            position = 3
+            position = 0,
+            section = chessPieceSettings
     )
     default String chessPieceUsernames() {
         return "W Pawn 1,W Pawn 2,W Pawn 3,W Pawn 4,W Pawn 5,W Pawn 6,W Pawn 7,W Pawn 8,B Pawn 1,B Pawn 2,B Pawn 3,B Pawn 4,B Pawn 5,B Pawn 6,B Pawn 7,B Pawn 8,W Rook 1,W Rook 2,B Rook 1,B Rook 2,W Bishop 1,W Bishop 2,B Bishop 1,B Bishop 2,W Queen 1,B Queen 1,W King1,B King 1,W Knight1,W Knight 2,B Knight 1,B Knight 2";
@@ -65,7 +82,8 @@ public interface ChessConfig extends Config {
             keyName = "chessPieceTypes",
             name = "chessPieceTypes",
             description = "Define chess piece username(s) sepparated by a comma here, this is required to let the plugin know which username is a chess piece",
-            position = 4
+            position = 1,
+            section = chessPieceSettings
     )
     default String chessPieceTypes1() {
         return "B Rook,B Knight,B Bishop,B Queen, B King,B Bishop,B Knight,B Rook";
@@ -75,7 +93,8 @@ public interface ChessConfig extends Config {
             keyName = "chessPieceTypes2",
             name = "chessPieceTypes2",
             description = "Define chess piece username(s) sepparated by a comma here, this is required to let the plugin know which username is a chess piece",
-            position = 5
+            position = 2,
+            section = chessPieceSettings
     )
     default String chessPieceTypes2() {
         return "B Pawn,B Pawn,B Pawn,B Pawn,B Pawn,B Pawn,B Pawn,B Pawn";
@@ -85,7 +104,8 @@ public interface ChessConfig extends Config {
             keyName = "chessPieceTypes3",
             name = "chessPieceTypes3",
             description = "Define chess piece username(s) sepparated by a comma here, this is required to let the plugin know which username is a chess piece",
-            position = 6
+            position = 3,
+            section = chessPieceSettings
     )
     default String chessPieceTypes3() {
         return "W Pawn,W Pawn,W Pawn,W Pawn,W Pawn,W Pawn,W Pawn,W Pawn";
@@ -95,7 +115,8 @@ public interface ChessConfig extends Config {
             keyName = "chessPieceTypes4",
             name = "chessPieceTypes4",
             description = "Define chess piece username(s) sepparated by a comma here, this is required to let the plugin know which username is a chess piece",
-            position = 7
+            position = 4,
+            section = chessPieceSettings
     )
     default String chessPieceTypes4() {
         return "W Rook,W Knight,W Bishop,W Queen,W King,W Bishop,W Knight,W Rook";
@@ -164,4 +185,41 @@ public interface ChessConfig extends Config {
     default Color backgroundColor() {
         return Color.GREEN;
     }
+
+    @ConfigItem(
+            section = streamerSettings,
+            keyName = "OAUthCode",
+            name = "OAUth Code",
+            description = "OAUth Code",
+            secret = true,
+            position = 0
+    )
+    default String OAUthCode() {return "";}
+
+    @ConfigItem(
+            section = streamerSettings,
+            keyName = "channelUsername",
+            name = "Channel User Name",
+            description = "Channel User Name",
+            position = 1
+    )
+    default String channelUsername() {return "";}
+
+    @ConfigItem(
+            section = streamerSettings,
+            keyName = "channelName",
+            name = "Channel Name",
+            description = "Channel Name",
+            position = 2
+    )
+    default String channelName() {return "";}
+
+    @ConfigItem(
+            section = streamerSettings,
+            keyName = "clientID",
+            name = "Client ID",
+            description = "Client ID",
+            position = 3
+    )
+    default String clientID() {return "";}
 }
