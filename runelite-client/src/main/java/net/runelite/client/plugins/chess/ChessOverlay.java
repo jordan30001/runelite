@@ -30,42 +30,42 @@ import net.runelite.api.*;
 import net.runelite.api.Point;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.client.plugins.chess.ColorTileMarker;
-import net.runelite.client.plugins.chess.ChessConfig;
-import net.runelite.client.plugins.chess.ChessPlugin;
-import net.runelite.client.plugins.chess.Triangle;
-import net.runelite.client.plugins.chess.Vertex;
 import net.runelite.client.ui.overlay.*;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.awt.image.DataBufferInt;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.*;
 import java.util.List;
+import java.util.stream.IntStream;
 
-public class ChessOverlay extends Overlay
-{
-	private final Client client;
-	private final ChessConfig config;
-	private final ChessPlugin plugin;
+public class ChessOverlay extends Overlay {
+    private final Client client;
+    private final ChessConfig config;
+    private final ChessPlugin plugin;
+    public static Set<String> chessPieceUsername;
 
 
-	@Inject
-	public ChessOverlay(Client client, ChessPlugin plugin, ChessConfig config) {
-		super(plugin);
-		setPosition(OverlayPosition.DYNAMIC);
-		setLayer(OverlayLayer.ABOVE_SCENE);
-		this.client = client;
-		this.config = config;
-		this.plugin = plugin;
-	}
+    @Inject
+    public ChessOverlay(Client client, ChessPlugin plugin, ChessConfig config) {
+        super(plugin);
+        setPosition(OverlayPosition.DYNAMIC);
+        setLayer(OverlayLayer.ABOVE_SCENE);
+        this.client = client;
+        this.config = config;
+        this.plugin = plugin;
+        String str = config.chessPieceUsernames();
+        String[] splitNames = config.chessPieceUsernames().split(",");
+        chessPieceUsername = new HashSet<String>();
+        for (String name : splitNames) {
+            System.out.println(name);
+            chessPieceUsername.add(name);
+        }
+    }
 
-	@Override
-	public Dimension render(Graphics2D graphics) {
+    @Override
+    public Dimension render(Graphics2D graphics) {
 //		Jordan30001: and all world objects
 //		Jordan30001: depending on what type of buffered image it is you can get the pixel data either with
 //		Jordan30001: byte[] pixels = ((DataBufferByte) bufferedImage.getRaster().getDataBuffer()).getData(); or int[] pixels = ((DataBufferInt) bufferedImage.getRaster().getDataBuffer()).getData();
@@ -77,131 +77,130 @@ public class ChessOverlay extends Overlay
 //		int[] pixels = ((DataBufferInt) bufferedImage.getRaster().getDataBuffer()).getData();
 // 		JORDAN#1
 //		byte[] pixels = ((DataBufferByte) bufferedImage.getRaster().getDataBuffer()).getData(); or int[] pixels = ((DataBufferInt) bufferedImage.getRaster().getDataBuffer()).getData();
-		final Collection<ColorTileMarker> points = plugin.getPoints();
-		BufferedImage image = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(), BufferedImage.TYPE_4BYTE_ABGR);
-		Graphics g = image.getGraphics();
-		g.setColor(Color.GREEN);
+        final Collection<ColorTileMarker> points = plugin.getPoints();
+        BufferedImage image = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(), BufferedImage.TYPE_INT_ARGB);
+        //int[] pixels = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
+        Graphics g = image.getGraphics();
+        if (config.showBackground())
+        {
+            g.setColor(config.backgroundColor());
+            g.fillRect(0, 0, image.getWidth(), image.getHeight());
+        }
 
-		for (final ColorTileMarker point : points)
-		{
-			WorldPoint worldPoint = point.getWorldPoint();
-			if (worldPoint.getPlane() != client.getPlane())
-			{
-				continue;
-			}
+        for (final ColorTileMarker point : points) {
+            WorldPoint worldPoint = point.getWorldPoint();
+            if (worldPoint.getPlane() != client.getPlane()) {
+                continue;
+            }
 
-			Color tileColor = point.getColor();
+            Color tileColor = point.getColor();
 //			if (tileColor == null || !config.rememberTileColors())
 //			{
 //				// If this is an old tile which has no color, or rememberTileColors is off, use marker color
 //				tileColor = config.markerColor();
 //			}
 
-			drawTile((Graphics2D)g, worldPoint, tileColor, point.getLabel());
-		}
+            drawTile((Graphics2D) g, worldPoint, tileColor, point.getLabel());
+        }
 
 
-		g.fillRect(0, 0, image.getWidth(), image.getHeight());
+        Polygon[] polygons = client.getLocalPlayer().getPolygons();
+        Triangle[] triangles = getTriangles(client.getLocalPlayer().getModel());
+
+        for (int i = 0; i < polygons.length; i++) {
+            Triangle t = triangles[i];
+            if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
+                clearPolygon(image, polygons[i]);
+            }
+        }
+
+        for(Player player: client.getPlayers()){
+
+            if (chessPieceUsername.contains(player.getName())) {
+                Polygon[] polygonsFast = player.getPolygons();
+                Triangle[] trianglesFast = getTriangles(player.getModel());
+
+                IntStream.range(0, polygonsFast.length).parallel().forEach(index -> {
+                        Triangle t = trianglesFast[index];
+                        if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
+                            clearPolygon(image, polygonsFast[index]);
+                        }
+                });
+
+            }
+        }
 
 
-		Polygon[] polygons = client.getLocalPlayer().getPolygons();
-		Triangle[] triangles = getTriangles(client.getLocalPlayer().getModel());
+        graphics.drawImage(image, 0, 0, null);
+        return null;
+    }
 
-		for (int i = 0; i < polygons.length; i++) {
-			Triangle t = triangles[i];
-			if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
-				clearPolygon(image, polygons[i]);
-			}
-		}
-		for (Player player : client.getPlayers())
-		{
-			if (ChessPlugin.chessPieceUsername.contains(player.getName()))
-			{
-				polygons = player.getPolygons();
-				triangles = getTriangles(player.getModel());
+    private void clearPolygon(BufferedImage image, Polygon p) {
 
-				for (int i = 0; i < polygons.length; i++)
-				{
-					Triangle t = triangles[i];
-					if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6))
-					{
-						clearPolygon(image, polygons[i]);
-					}
-				}
-			}
-		}
+        Rectangle bounds = p.getBounds();
 
-		graphics.drawImage(image, 0, 0, null);
-		return null;
-	}
+        for (double y = bounds.getMinY(); y < bounds.getMaxY(); y++) {
+            for (double x = bounds.getMinX(); x < bounds.getMaxX(); x++) {
+                if (p.contains(x, y)
+                        && x >= 0
+                        && x < client.getCanvasWidth()
+                        && y >= 0
+                        && y < client.getCanvasHeight()
+                ) {
+                    image.setRGB((int) x, (int) y, 0x00000000);
+                }
+            }
+        }
+    }
 
-	private void clearPolygon(BufferedImage image, Polygon p) {
-		Rectangle bounds = p.getBounds();
-		for (double y = bounds.getMinY(); y < bounds.getMaxY(); y++) {
-			for (double x = bounds.getMinX(); x < bounds.getMaxX(); x++) {
-				if (p.contains(x, y)
-						&& x >= 0
-						&& x < client.getCanvasWidth()
-						&& y >= 0
-						&& y < client.getCanvasHeight()
-				) {
-					image.setRGB((int)x, (int)y, 0x00000000);
-				}
-			}
-		}
-	}
+    private java.util.List<Vertex> getVertices(Model model) {
+        int[] verticesX = model.getVerticesX();
+        int[] verticesY = model.getVerticesY();
+        int[] verticesZ = model.getVerticesZ();
 
-	private java.util.List<Vertex> getVertices(Model model)
-	{
-		int[] verticesX = model.getVerticesX();
-		int[] verticesY = model.getVerticesY();
-		int[] verticesZ = model.getVerticesZ();
+        int count = model.getVerticesCount();
 
-		int count = model.getVerticesCount();
+        java.util.List<Vertex> vertices = new ArrayList(count);
 
-		java.util.List<Vertex> vertices = new ArrayList(count);
+        for (int i = 0; i < count; ++i) {
+            Vertex v = new Vertex(
+                    verticesX[i],
+                    verticesY[i],
+                    verticesZ[i]
+            );
+            vertices.add(v);
+        }
 
-		for (int i = 0; i < count; ++i)
-		{
-			Vertex v = new Vertex(
-					verticesX[i],
-					verticesY[i],
-					verticesZ[i]
-			);
-			vertices.add(v);
-		}
+        return vertices;
+    }
 
-		return vertices;
-	}
+    private Triangle[] getTriangles(Model model) {
+        int[] trianglesX = model.getTrianglesX();
+        int[] trianglesY = model.getTrianglesY();
+        int[] trianglesZ = model.getTrianglesZ();
 
-	private Triangle[] getTriangles(Model model)
-	{
-		int[] trianglesX = model.getTrianglesX();
-		int[] trianglesY = model.getTrianglesY();
-		int[] trianglesZ = model.getTrianglesZ();
+        List<Vertex> vertices = getVertices(model);
 
-		List<Vertex> vertices = getVertices(model);
+        int count = model.getTrianglesCount();
+        Triangle[] triangles = new Triangle[count];
 
-		int count = model.getTrianglesCount();
-		Triangle[] triangles = new Triangle[count];
+        for (int i = 0; i < count; ++i) {
+            int triangleX = trianglesX[i];
+            int triangleY = trianglesY[i];
+            int triangleZ = trianglesZ[i];
 
-		for (int i = 0; i < count; ++i)
-		{
-			int triangleX = trianglesX[i];
-			int triangleY = trianglesY[i];
-			int triangleZ = trianglesZ[i];
+            Triangle triangle = new Triangle(
+                    vertices.get(triangleX),
+                    vertices.get(triangleY),
+                    vertices.get(triangleZ)
+            );
+            triangles[i] = triangle;
+        }
 
-			Triangle triangle = new Triangle(
-					vertices.get(triangleX),
-					vertices.get(triangleY),
-					vertices.get(triangleZ)
-			);
-			triangles[i] = triangle;
-		}
+        return triangles;
+    }
 
-		return triangles;
-	}
-	private static final int MAX_DRAW_DISTANCE = 32;
+    private static final int MAX_DRAW_DISTANCE = 32;
 
 //	@Override
 //	public Dimension render(Graphics2D graphics)
@@ -228,41 +227,35 @@ public class ChessOverlay extends Overlay
 //		return null;
 //	}
 
-	private void drawTile(Graphics2D graphics, WorldPoint point, Color color, @Nullable String label)
-	{
-		WorldPoint playerLocation = client.getLocalPlayer().getWorldLocation();
+    private void drawTile(Graphics2D graphics, WorldPoint point, Color color, @Nullable String label) {
+        WorldPoint playerLocation = client.getLocalPlayer().getWorldLocation();
 
-		if (point.distanceTo(playerLocation) >= MAX_DRAW_DISTANCE)
-		{
-			return;
-		}
+        if (point.distanceTo(playerLocation) >= MAX_DRAW_DISTANCE) {
+            return;
+        }
 
-		LocalPoint lp = LocalPoint.fromWorld(client, point);
-		if (lp == null)
-		{
-			return;
-		}
+        LocalPoint lp = LocalPoint.fromWorld(client, point);
+        if (lp == null) {
+            return;
+        }
 
-		Polygon poly = Perspective.getCanvasTilePoly(client, lp);
-		if (poly != null)
-		{
-			graphics.setColor(color);
-			final Stroke originalStroke = graphics.getStroke();
-			final Color originalColor = graphics.getColor();
+        Polygon poly = Perspective.getCanvasTilePoly(client, lp);
+        if (poly != null) {
+            graphics.setColor(color);
+            final Stroke originalStroke = graphics.getStroke();
+            final Color originalColor = graphics.getColor();
 //			graphics.setStroke(new BasicStroke(2));
-			graphics.draw(poly);
-			graphics.setColor(originalColor);
-			graphics.fill(poly);
+            graphics.draw(poly);
+            graphics.setColor(originalColor);
+            graphics.fill(poly);
 //			graphics.setStroke(originalStroke);
-		}
+        }
 
-		if (!Strings.isNullOrEmpty(label))
-		{
-			Point canvasTextLocation = Perspective.getCanvasTextLocation(client, graphics, lp, label, 0);
-			if (canvasTextLocation != null)
-			{
-				OverlayUtil.renderTextLocation(graphics, canvasTextLocation, label, color);
-			}
-		}
-	}
+        if (!Strings.isNullOrEmpty(label)) {
+            Point canvasTextLocation = Perspective.getCanvasTextLocation(client, graphics, lp, label, 0);
+            if (canvasTextLocation != null) {
+                OverlayUtil.renderTextLocation(graphics, canvasTextLocation, label, color);
+            }
+        }
+    }
 }

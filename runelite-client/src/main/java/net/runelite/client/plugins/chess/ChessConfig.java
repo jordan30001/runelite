@@ -33,12 +33,20 @@ import java.awt.*;
 public interface ChessConfig extends Config
 {
 	@ConfigItem(
-			keyName = "chessUsernames",
-			name = "Chess Players Usernames",
+			keyName = "chessPlayerUsernames",
+			name = "Chess Players",
 			description = "Define chess player username(s) sepparated by a comma here, this is required to let the plugin know which chat commands to read",
 			position = 1
 	)
-	default String chessUsernames() { return ""; }
+	default String chessPlayerUsernames() { return ""; }
+
+	@ConfigItem(
+			keyName = "chessPieceUsernames",
+			name = "Chess Pieces",
+			description = "Define chess piece username(s) sepparated by a comma here, this is required to let the plugin know which username is a chess piece",
+			position = 1
+	)
+	default String chessPieceUsernames() { return ""; }
 
 	@ConfigItem(
 			keyName = "showChessBoard",
@@ -51,12 +59,23 @@ public interface ChessConfig extends Config
 		return false;
 	}
 
+	@ConfigItem(
+			keyName = "showBackground",
+			name = "Turns background on or off",
+			description = "Turns the background on or off",
+			position = 3
+	)
+	default boolean showBackground()
+	{
+		return false;
+	}
+
 	@Alpha
 	@ConfigItem(
 			keyName = "markerColor",
 			name = "Color of the tile",
 			description = "Configures the color of marked tile",
-			position = 3
+			position = 4
 	)
 	default Color markerColor()
 	{
@@ -68,7 +87,7 @@ public interface ChessConfig extends Config
 			keyName = "blackTileColor",
 			name = "Color of the black tiles",
 			description = "Configures the color of the black tiles",
-			position = 4
+			position = 5
 	)
 	default Color blackTileColor()
 	{
@@ -80,18 +99,22 @@ public interface ChessConfig extends Config
 			keyName = "whiteTileColor",
 			name = "Color of the white tiles",
 			description = "Configures the color of the white tiles",
-			position = 5
+			position = 6
 	)
 	default Color whiteTileColor()
 	{
 		return new Color (255,255,255,255);
 	}
 
+	@Alpha
 	@ConfigItem(
-			keyName = "chessPieceNames",
-			name = "Chess Piece OSRS Usernames",
-			description = "Set the chess piece osrs usernames here",
-			position = 6
+			keyName = "backgroundColor",
+			name = "Color of the background",
+			description = "Configures the color of the background",
+			position = 7
 	)
-	default String chessPieceNames() { return ""; }
+	default Color backgroundColor()
+	{
+		return Color.GREEN;
+	}
 }

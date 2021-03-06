@@ -75,7 +75,6 @@ public class ChessPlugin extends Plugin
 	private static final String WALK_HERE = "Walk here";
 	private static final String REGION_PREFIX = "region_";
 	private static ChessMarkerPoint SW_Chess_Tile = null;
-	public static Set<String> chessPieceUsername;
 
 	@Getter
 	private ChessOverlay chessOverlay;
@@ -186,15 +185,6 @@ public class ChessPlugin extends Plugin
 	{
 		overlayManager.add(overlay);
 		loadPoints();
-		System.out.println("Restart");
-		String str = getConfig(configManager).chessPieceNames();
-		String []splitNames = getConfig(configManager).chessPieceNames().split(",");
-		chessPieceUsername = new HashSet < String > ();
-		for (String name : splitNames)
-			{
-				System.out.println(name);
-				chessPieceUsername.add(name);
-			}
 		}
 
 	@Override
