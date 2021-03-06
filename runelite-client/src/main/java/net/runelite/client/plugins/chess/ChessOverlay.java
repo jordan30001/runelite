@@ -25,12 +25,19 @@
  */
 package net.runelite.client.plugins.chess;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import net.runelite.api.*;
 import net.runelite.api.Point;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.events.ChatMessage;
+import net.runelite.client.Notifier;
+import net.runelite.client.chat.ChatColorType;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.ui.overlay.*;
+import net.runelite.client.util.Text;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
@@ -38,13 +45,17 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.*;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class ChessOverlay extends Overlay {
     private final Client client;
-    private final ChessConfig config;
+    public final ChessConfig config;
     private final ChessPlugin plugin;
     public static Set<String> chessPieceUsername;
+    public static HashMap<String, String> usernameToType;
 
 
     @Inject
@@ -55,12 +66,19 @@ public class ChessOverlay extends Overlay {
         this.client = client;
         this.config = config;
         this.plugin = plugin;
-        String str = config.chessPieceUsernames();
         String[] splitNames = config.chessPieceUsernames().split(",");
+        List<String> allTypes = new ArrayList<>();
+        allTypes.addAll(Arrays.asList(config.chessPieceTypes1().split(",")));
+        allTypes.addAll(Arrays.asList(config.chessPieceTypes2().split(",")));
+        allTypes.addAll(Arrays.asList(config.chessPieceTypes3().split(",")));
+        allTypes.addAll(Arrays.asList(config.chessPieceTypes4().split(",")));
         chessPieceUsername = new HashSet<String>();
-        for (String name : splitNames) {
-            System.out.println(name);
-            chessPieceUsername.add(name);
+        usernameToType = new HashMap<>();
+        if(allTypes.size() == splitNames.length) {
+            for (int i = 0; i < splitNames.length; i++) {
+                chessPieceUsername.add(splitNames[i]);
+                usernameToType.put(splitNames[i], Strings.isNullOrEmpty(allTypes.get(i)) ? null : allTypes.get(i));
+            }
         }
     }
 
@@ -81,8 +99,7 @@ public class ChessOverlay extends Overlay {
         BufferedImage image = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(), BufferedImage.TYPE_INT_ARGB);
         //int[] pixels = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
         Graphics g = image.getGraphics();
-        if (config.showBackground())
-        {
+        if (config.showBackground()) {
             g.setColor(config.backgroundColor());
             g.fillRect(0, 0, image.getWidth(), image.getHeight());
         }
@@ -114,17 +131,17 @@ public class ChessOverlay extends Overlay {
             }
         }
 
-        for(Player player: client.getPlayers()){
+        for (Player player : client.getPlayers()) {
 
             if (chessPieceUsername.contains(player.getName())) {
                 Polygon[] polygonsFast = player.getPolygons();
                 Triangle[] trianglesFast = getTriangles(player.getModel());
 
                 IntStream.range(0, polygonsFast.length).parallel().forEach(index -> {
-                        Triangle t = trianglesFast[index];
-                        if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
-                            clearPolygon(image, polygonsFast[index]);
-                        }
+                    Triangle t = trianglesFast[index];
+                    if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
+                        clearPolygon(image, polygonsFast[index]);
+                    }
                 });
 
             }
@@ -199,6 +216,7 @@ public class ChessOverlay extends Overlay {
 
         return triangles;
     }
+
 
     private static final int MAX_DRAW_DISTANCE = 32;
 
