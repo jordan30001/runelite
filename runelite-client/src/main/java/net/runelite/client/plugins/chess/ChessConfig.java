@@ -58,7 +58,7 @@ public interface ChessConfig extends Config {
             position = 3
     )
     default String chessPieceUsernames() {
-        return "B Rook 1,B Knight 1,B Bishop 1,B Queen 1, B King 1,B Bishop 2,B Knight 2,B Rook 2,B Pawn 1,B Pawn 2,B Pawn 3,B Pawn 4,B Pawn 5,B Pawn 6,B Pawn 7,B Pawn 8,W Pawn 1,W Pawn 2,W Pawn 3,W Pawn 4,W Pawn 5,W Pawn 6,W Pawn 7,W Pawn 8,W Rook 1,W Knight 1,W Bishop 1,W Queen 1,W King1,W Bishop 2,W Knight1,W Bishop 2,W Knight 2,W Rook 2";
+        return "W Pawn 1,W Pawn 2,W Pawn 3,W Pawn 4,W Pawn 5,W Pawn 6,W Pawn 7,W Pawn 8,B Pawn 1,B Pawn 2,B Pawn 3,B Pawn 4,B Pawn 5,B Pawn 6,B Pawn 7,B Pawn 8,W Rook 1,W Rook 2,B Rook 1,B Rook 2,W Bishop 1,W Bishop 2,B Bishop 1,B Bishop 2,W Queen 1,B Queen 1,W King1,B King 1,W Knight1,W Knight 2,B Knight 1,B Knight 2";
     }
 
     @ConfigItem(
