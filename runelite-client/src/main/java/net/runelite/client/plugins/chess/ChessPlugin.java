@@ -212,7 +212,6 @@ public class ChessPlugin extends Plugin {
 
 		if (twitchNames == null)
 			twitchNames = new HashSet<String>();
-		;
 		if (gameNames == null)
 			gameNames = new HashSet<String>();
 
@@ -231,8 +230,13 @@ public class ChessPlugin extends Plugin {
 		allTypes.addAll(Arrays.asList(config.chessPieceTypes2().split(",")));
 		allTypes.addAll(Arrays.asList(config.chessPieceTypes3().split(",")));
 		allTypes.addAll(Arrays.asList(config.chessPieceTypes4().split(",")));
-		ChessOverlay.chessPieceUsername = new HashSet<String>();
-		ChessOverlay.usernameToType = new HashMap<>();
+		
+		if (ChessOverlay.chessPieceUsername == null)
+			ChessOverlay.chessPieceUsername = new HashSet<>();
+		if (ChessOverlay.usernameToType == null)
+			ChessOverlay.usernameToType = new HashMap<>();
+		ChessOverlay.chessPieceUsername.clear();
+		ChessOverlay.usernameToType.clear();
 		if (allTypes.size() == splitNames.length) {
 			for (int i = 0; i < splitNames.length; i++) {
 				ChessOverlay.chessPieceUsername.add(splitNames[i]);
@@ -345,7 +349,7 @@ public class ChessPlugin extends Plugin {
 							.concat(Stream.of(client.getLocalPlayer()), client.getPlayers().stream())
 							.filter(curPlayer -> ChessOverlay.chessPieceUsername.contains(curPlayer.getName()))
 							.findFirst();
-
+					System.out.println(ChessOverlay.chessPieceUsername.size());
 					if (playerOnTile.isPresent()) {
 						Player player = playerOnTile.get();
 						WorldPoint playerPoint = player.getWorldLocation();
