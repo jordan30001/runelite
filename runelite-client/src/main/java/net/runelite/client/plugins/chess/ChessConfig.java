@@ -86,4 +86,12 @@ public interface ChessConfig extends Config
 	{
 		return new Color (255,255,255,255);
 	}
+
+	@ConfigItem(
+			keyName = "chessPieceNames",
+			name = "Chess Piece OSRS Usernames",
+			description = "Set the chess piece osrs usernames here",
+			position = 6
+	)
+	default String chessPieceNames() { return ""; }
 }

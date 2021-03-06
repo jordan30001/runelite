@@ -26,9 +26,7 @@
 package net.runelite.client.plugins.chess;
 
 import com.google.common.base.Strings;
-import net.runelite.api.Client;
-import net.runelite.api.Model;
-import net.runelite.api.Perspective;
+import net.runelite.api.*;
 import net.runelite.api.Point;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
@@ -105,6 +103,7 @@ public class ChessOverlay extends Overlay
 
 		g.fillRect(0, 0, image.getWidth(), image.getHeight());
 
+
 		Polygon[] polygons = client.getLocalPlayer().getPolygons();
 		Triangle[] triangles = getTriangles(client.getLocalPlayer().getModel());
 
@@ -112,6 +111,23 @@ public class ChessOverlay extends Overlay
 			Triangle t = triangles[i];
 			if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
 				clearPolygon(image, polygons[i]);
+			}
+		}
+		for (Player player : client.getPlayers())
+		{
+			if (ChessPlugin.chessPieceUsername.contains(player.getName()))
+			{
+				polygons = player.getPolygons();
+				triangles = getTriangles(player.getModel());
+
+				for (int i = 0; i < polygons.length; i++)
+				{
+					Triangle t = triangles[i];
+					if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6))
+					{
+						clearPolygon(image, polygons[i]);
+					}
+				}
 			}
 		}
 
