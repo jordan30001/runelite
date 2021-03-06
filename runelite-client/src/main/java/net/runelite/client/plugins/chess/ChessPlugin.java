@@ -196,6 +196,21 @@ public class ChessPlugin extends Plugin {
         for (String name : splitGameNames) {
             gameNames.add(name);
         }
+
+        String[] splitNames = config.chessPieceUsernames().split(",");
+        List<String> allTypes = new ArrayList<>();
+        allTypes.addAll(Arrays.asList(config.chessPieceTypes1().split(",")));
+        allTypes.addAll(Arrays.asList(config.chessPieceTypes2().split(",")));
+        allTypes.addAll(Arrays.asList(config.chessPieceTypes3().split(",")));
+        allTypes.addAll(Arrays.asList(config.chessPieceTypes4().split(",")));
+        ChessOverlay.chessPieceUsername = new HashSet<String>();
+        ChessOverlay.usernameToType = new HashMap<>();
+        if(allTypes.size() == splitNames.length) {
+            for (int i = 0; i < splitNames.length; i++) {
+                ChessOverlay.chessPieceUsername.add(splitNames[i]);
+                ChessOverlay.usernameToType.put(splitNames[i], Strings.isNullOrEmpty(allTypes.get(i)) ? null : allTypes.get(i));
+            }
+        }
     }
 
     @Override
@@ -313,14 +328,28 @@ public class ChessPlugin extends Plugin {
                 chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x, worldPoint.getRegionY() + y, client.getPlane(), WhatColor(x, y), WhatLabel(x, y)));
 
                 if ((x >= 1 || x <= 9) && (y >= 1 && y <= 9)) {
-                    for (Player player : client.getPlayers()) {
-                        WorldPoint playerPoint = player.getWorldLocation();
-                        if (playerPoint.equals(worldPoint)) {
+                    Player thisPlayer = client.getLocalPlayer();
+                    WorldPoint thisPlayerPoint = thisPlayer.getWorldLocation();
+                    if (ChessOverlay.chessPieceUsername.contains(thisPlayer.getName())) {
+                        if (thisPlayerPoint.getX() == worldPoint.getX() + x &&
+                                thisPlayerPoint.getY() == worldPoint.getY() + y) {
+                            String pieceType = ChessOverlay.usernameToType.getOrDefault(thisPlayer.getName(), null);
+                            if (pieceType == null) continue;
+                            thisPlayer.setOverheadText(pieceType);
+                            //notify chess engine of this piece
+                        }
+                    } else {
+                        for (Player player : client.getPlayers()) {
+                            WorldPoint playerPoint = player.getWorldLocation();
                             if (ChessOverlay.chessPieceUsername.contains(player.getName())) {
-                                String pieceType = ChessOverlay.usernameToType.getOrDefault(player.getName(), null);
-                                if (pieceType == null) continue;
-                                System.out.println("Chess Piece: " + pieceType + " x: " + x + " y: " + y);
-                                player.setOverheadText(pieceType);
+                                System.out.println(player.getName() + " - " + Objects.toString(playerPoint));
+                                if (playerPoint.getX() == worldPoint.getX() + x &&
+                                        playerPoint.getY() == worldPoint.getY() + y) {
+                                    String pieceType = ChessOverlay.usernameToType.getOrDefault(player.getName(), null);
+                                    if (pieceType == null) continue;
+                                    player.setOverheadText(pieceType);
+                                    //notify chess engine of this piece
+                                }
                             }
                         }
                     }

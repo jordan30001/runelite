@@ -66,20 +66,6 @@ public class ChessOverlay extends Overlay {
         this.client = client;
         this.config = config;
         this.plugin = plugin;
-        String[] splitNames = config.chessPieceUsernames().split(",");
-        List<String> allTypes = new ArrayList<>();
-        allTypes.addAll(Arrays.asList(config.chessPieceTypes1().split(",")));
-        allTypes.addAll(Arrays.asList(config.chessPieceTypes2().split(",")));
-        allTypes.addAll(Arrays.asList(config.chessPieceTypes3().split(",")));
-        allTypes.addAll(Arrays.asList(config.chessPieceTypes4().split(",")));
-        chessPieceUsername = new HashSet<String>();
-        usernameToType = new HashMap<>();
-        if(allTypes.size() == splitNames.length) {
-            for (int i = 0; i < splitNames.length; i++) {
-                chessPieceUsername.add(splitNames[i]);
-                usernameToType.put(splitNames[i], Strings.isNullOrEmpty(allTypes.get(i)) ? null : allTypes.get(i));
-            }
-        }
     }
 
     @Override

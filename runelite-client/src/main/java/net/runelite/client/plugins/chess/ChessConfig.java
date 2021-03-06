@@ -98,7 +98,7 @@ public interface ChessConfig extends Config {
             position = 7
     )
     default String chessPieceTypes4() {
-        return "W Rook,W Knight,W Bishop,W Queen,W King,W Bishop,W Knight,W Bishop,W Knight,W Rook";
+        return "W Rook,W Knight,W Bishop,W Queen,W King,W Bishop,W Knight,W Rook";
     }
 
     @ConfigItem(
