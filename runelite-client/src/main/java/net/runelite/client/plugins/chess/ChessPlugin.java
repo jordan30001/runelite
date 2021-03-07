@@ -83,8 +83,19 @@ import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 
+import javax.annotation.Nullable;
+import javax.inject.Inject;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.util.List;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 @Slf4j
-@PluginDescriptor(name = "Chess", description = "Chess plugin", tags = { "config", "chess" })
+@PluginDescriptor(name = "Chess", description = "Chess plugin", tags = {"config", "chess"})
 
 public class ChessPlugin extends Plugin {
 	private static final String CONFIG_GROUP = "chessMarker";
@@ -502,4 +513,5 @@ public class ChessPlugin extends Plugin {
 	private String getCharForNumber(int i) {
 		return i > 0 && i < 27 ? String.valueOf((char) (i + 64)) : null;
 	}
+
 }

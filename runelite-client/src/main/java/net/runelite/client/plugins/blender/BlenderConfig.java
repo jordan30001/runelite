@@ -1,6 +1,6 @@
-
 /*
- * Copyright (c) 2019, Lotto <https://github.com/devLotto>
+ * Copyright (c) 2018, Joris K <kjorisje@gmail.com>
+ * Copyright (c) 2018, Lasse <cronick@zytex.dk>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,56 +23,43 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.client.plugins.chess;
 
+package net.runelite.client.plugins.blender;
 
-import com.google.common.collect.ImmutableMap;
+import net.runelite.client.config.*;
 
-import java.awt.image.BufferedImage;
-import java.util.Map;
+import java.awt.*;
 
-import net.runelite.client.util.ImageUtil;
-
-public enum ChessEmotes {
-
-    KAPPA("kappa"),
-    MINIK("minik"),
-    MINIMINIK("miniminik"),
-    SADKEK("sadkek"),
-    BLADE_POG("bladepog"), 
-    FFZ_HANDS_UP("handsup"), 
-    FFZ_WIDE_PEEPO_HAPPY("widepeepohappy"), 
-    PRIME_YOU_DONT_SAY("youdontsay"), 
-    FFZ_PEEPO_HAPPY("peepohappy")
-    ;
-
-    private static final Map<String, ChessEmotes> emojiMap;
-
-    private final String trigger;
-
-    static {
-        ImmutableMap.Builder<String, ChessEmotes> builder = new ImmutableMap.Builder<>();
-
-        for (final ChessEmotes emoji : values()) {
-            builder.put(emoji.trigger, emoji);
-        }
-
-        emojiMap = builder.build();
+@ConfigGroup("blender")
+public interface BlenderConfig extends Config {
+    @ConfigItem(
+            keyName = "sendCamera",
+            name = "Send Camera Data",
+            description = "Sends Camera Data to Blender",
+            position = 0
+    )
+    default boolean sendCamera() {
+        return false;
     }
 
-    ChessEmotes(String trigger) {
-        this.trigger = trigger;
+    @ConfigItem(
+            keyName = "sendPlayerData",
+            name = "Send Player Data",
+            description = "Sends Player Data to Blender",
+            position = 1
+    )
+    default boolean sendPlayerData() {
+        return false;
     }
 
-    BufferedImage loadImage() {
-        return ImageUtil.loadImageResource(getClass(), this.name().toLowerCase() + ".png");
+    @ConfigItem(
+            keyName = "sendNPCData",
+            name = "Send NPC Data",
+            description = "Sends NPC Data to Blender",
+            position = 2
+    )
+    default boolean sendNPCData() {
+        return false;
     }
 
-    static ChessEmotes getEmoji(String trigger) {
-        return emojiMap.get(trigger);
-    }
-    String toHTMLString(int startingOrdinal){
-    	return "<img=" + (startingOrdinal + this.ordinal()) + ">";
-    }
 }
-

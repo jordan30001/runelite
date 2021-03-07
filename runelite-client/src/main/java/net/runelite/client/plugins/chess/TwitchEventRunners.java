@@ -20,8 +20,13 @@ import com.github.twitch4j.pubsub.events.HypeTrainLevelUpEvent;
 import com.github.twitch4j.pubsub.events.HypeTrainStartEvent;
 import com.github.twitch4j.pubsub.events.RewardRedeemedEvent;
 
+import com.github.twitch4j.pubsub.events.*;
 import net.runelite.api.Player;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
+
+import java.awt.*;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class TwitchEventRunners {
 
@@ -64,6 +69,7 @@ public class TwitchEventRunners {
 		 * case "chesssubtime": case "chessaddtime": {
 		 * 
 		 * } break; }
+
 		 */
 	}
 
@@ -72,6 +78,7 @@ public class TwitchEventRunners {
 		Color color = Utils.ColorFromString(event.getRedemption().getUserInput());
 
 		if (color == null) {
+
 			plugin.queueOverheadText(String.format("Beep Boop Invalid Color: %s", event.getRedemption().getUser(),
 					ChessEmotes.SADKEK.toHTMLString(plugin.modIconsStart)), 6000);
 		}
