@@ -216,11 +216,9 @@ public class ChessOverlay extends Overlay
 			graphics.setColor(color);
 			final Stroke originalStroke = graphics.getStroke();
 			final Color originalColor = graphics.getColor();
-			//			graphics.setStroke(new BasicStroke(2));
 			graphics.draw(poly);
 			graphics.setColor(originalColor);
 			graphics.fill(poly);
-			//			graphics.setStroke(originalStroke);
 		}
 
 		if (!Strings.isNullOrEmpty(label))

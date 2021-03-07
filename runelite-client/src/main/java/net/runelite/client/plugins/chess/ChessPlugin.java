@@ -25,18 +25,46 @@
  */
 package net.runelite.client.plugins.chess;
 
-import com.github.bhlangonijr.chesslib.Board;
-import com.github.twitch4j.pubsub.events.RewardRedeemedEvent;
+import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import javax.annotation.Nullable;
+import javax.inject.Inject;
+
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.*;
+import net.runelite.api.Client;
+import net.runelite.api.GameState;
+import net.runelite.api.IndexedSprite;
+import net.runelite.api.KeyCode;
+import net.runelite.api.MenuAction;
+import net.runelite.api.MenuEntry;
+import net.runelite.api.Player;
+import net.runelite.api.Tile;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.events.BeforeRender;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.MenuEntryAdded;
@@ -50,26 +78,10 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.chatnotifications.OverheadTextInfo;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
-
-import javax.annotation.Nullable;
-import javax.inject.Inject;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.Inet4Address;
-import java.net.URL;
-import java.util.List;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Slf4j
 @PluginDescriptor(name = "Chess", description = "Chess plugin", tags = { "config", "chess" })
@@ -129,9 +141,11 @@ public class ChessPlugin extends Plugin {
 	private TwitchIntegration twitchEventManager;
 	private TwitchEventRunners twitchListeners;
 	public int modIconsStart = -1;
+	private BlockingQueue<OverheadTextInfo> overheadTextQueue;
 
 	@Override
 	protected void startUp() throws Exception {
+		overheadTextQueue = new ArrayBlockingQueue<>(100);
 		overlayManager.add(overlay);
 		loadPoints();
 		this.config = overlay.config;
@@ -261,7 +275,6 @@ public class ChessPlugin extends Plugin {
 						Strings.isNullOrEmpty(allTypes.get(i)) ? null : allTypes.get(i));
 			}
 		}
-		
 
 		// TODO: check if is streamer
 		if (twitchEventManager == null) {
@@ -327,6 +340,30 @@ public class ChessPlugin extends Plugin {
 		}
 	}
 
+	@Subscribe
+	public void onBeforeRender(BeforeRender event) {
+		if (client.getLocalPlayer() == null)
+			return;
+		OverheadTextInfo overheadInfo = overheadTextQueue.peek();
+		if (overheadInfo == null) {
+			client.getPlayers().forEach(p -> p.setOverheadText(""));
+			client.getLocalPlayer().setOverheadText("");
+			return;
+		}
+		if (overheadInfo.isStarted()) {
+			if (overheadInfo.isFinished())
+				overheadTextQueue.poll();
+		} else {
+			overheadInfo.startCountdown();
+			client.getPlayers().forEach(p -> p.setOverheadText(overheadInfo.getOverheadText()));
+			client.getLocalPlayer().setOverheadText(overheadInfo.getOverheadText());
+		}
+	}
+
+	public void queueOverheadText(String text, long timeToDisplay) {
+		overheadTextQueue.offer(new OverheadTextInfo(text, timeToDisplay));
+	}
+
 	private void markTile(LocalPoint localPoint, boolean doMark, boolean doUnmark, boolean updateVisuals) {
 		if (localPoint == null) {
 			return;
@@ -364,11 +401,7 @@ public class ChessPlugin extends Plugin {
 												null);
 										if (pieceType == null)
 											continue;
-										if (doMark == false) {
-											player.setOverheadText(pieceType);
-										} else {
-											player.setOverheadText("");
-										}
+										player.setOverheadText(pieceType);
 										// notify chess engine of this piece
 									}
 								}
@@ -411,26 +444,30 @@ public class ChessPlugin extends Plugin {
 	}
 
 	private void loadEmojiIcons() {
-		// TODO: blade uncoment this when pulling
+		final IndexedSprite[] modIcons = client.getModIcons();
+		if (modIconsStart != -1 || modIcons == null) {
+			return;
+		}
 
-		/*
-		 * final IndexedSprite[] modIcons = client.getModIcons(); if (modIconsStart !=
-		 * -1 || modIcons == null) { return; }
-		 * 
-		 * final ChessEmotes[] emojis = ChessEmotes.values(); final IndexedSprite[]
-		 * newModIcons = Arrays.copyOf(modIcons, modIcons.length + emojis.length);
-		 * modIconsStart = modIcons.length;
-		 * 
-		 * for (int i = 0; i < emojis.length; i++) { final ChessEmotes emoji =
-		 * emojis[i];
-		 * 
-		 * try { final BufferedImage image = emoji.loadImage(); final IndexedSprite
-		 * sprite = ImageUtil.getImageIndexedSprite(image, client);
-		 * newModIcons[modIconsStart + i] = sprite; } catch (Exception ex) {
-		 * log.warn("Failed to load the sprite for emoji " + emoji, ex); } }
-		 * 
-		 * log.debug("Adding emoji icons"); client.setModIcons(newModIcons);
-		 */
+		final ChessEmotes[] emojis = ChessEmotes.values();
+		final IndexedSprite[] newModIcons = Arrays.copyOf(modIcons, modIcons.length + emojis.length);
+		modIconsStart = modIcons.length;
+
+		for (int i = 0; i < emojis.length; i++) {
+			final ChessEmotes emoji = emojis[i];
+
+			try {
+				final BufferedImage image = emoji.loadImage();
+				final IndexedSprite sprite = ImageUtil.getImageIndexedSprite(image, client);
+				newModIcons[modIconsStart + i] = sprite;
+			} catch (Exception ex) {
+				log.warn("Failed to load the sprite for emoji " + emoji, ex);
+			}
+		}
+
+		log.debug("Adding emoji icons");
+		client.setModIcons(newModIcons);
+
 	}
 
 	public Color WhatColor(int x, int y) {
