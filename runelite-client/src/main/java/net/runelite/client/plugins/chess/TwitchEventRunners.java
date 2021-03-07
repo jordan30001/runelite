@@ -79,8 +79,9 @@ public class TwitchEventRunners {
 
 		if (color == null) {
 
-			plugin.queueOverheadText(String.format("Beep Boop Invalid Color: %s", event.getRedemption().getUser(),
-					ChessEmotes.SADKEK.toHTMLString(plugin.modIconsStart)), 6000);
+			plugin.queueOverheadText(String.format("Beep Boop Invalid Color: %s%s", event.getRedemption().getUserInput(),
+					ChessEmotes.SadKek.toHTMLString(plugin.modIconsStart)), 6000);
+			return;
 		}
 		if ("Change Black Chessboard Tiles".equals(eventType)) {
 			plugin.configManager.setConfiguration("chess", "blackTileColor", color.getRGB());
@@ -95,19 +96,19 @@ public class TwitchEventRunners {
 		switch (data.getSubPlan()) {
 		case TIER1:
 			plugin.queueOverheadText(String.format("%s just subscribed %s", data.getDisplayName(),
-					ChessEmotes.BLADE_POG.toHTMLString(plugin.modIconsStart)), 5000);
+					ChessEmotes.Bladeb7PogChamp.toHTMLString(plugin.modIconsStart)), 5000);
 			break;
 		case TIER2:
 			plugin.queueOverheadText(String.format("%s just subscribed %s", data.getDisplayName(),
-					ChessEmotes.FFZ_HANDS_UP.toHTMLString(plugin.modIconsStart)), 5000);
+					ChessEmotes.HandsUp.toHTMLString(plugin.modIconsStart)), 5000);
 			break;
 		case TIER3:
 			plugin.queueOverheadText(String.format("%s just subscribed %s", data.getDisplayName(),
-					ChessEmotes.FFZ_WIDE_PEEPO_HAPPY.toHTMLString(plugin.modIconsStart)), 5000);
+					ChessEmotes.WidePeepoHappy.toHTMLString(plugin.modIconsStart)), 5000);
 			break;
 		case TWITCH_PRIME:
 			plugin.queueOverheadText(String.format("%s just subscribed %s", data.getDisplayName(),
-					ChessEmotes.PRIME_YOU_DONT_SAY.toHTMLString(plugin.modIconsStart)), 5000);
+					ChessEmotes.PrimeWhatYouSay.toHTMLString(plugin.modIconsStart)), 5000);
 			break;
 		case NONE:
 		default:
@@ -119,6 +120,6 @@ public class TwitchEventRunners {
 	public void onFollower(FollowingEvent event) {
 		FollowingData data = event.getData();
 		plugin.queueOverheadText(String.format("Thanks for following %s%s",
-				data.getDisplayName(), ChessEmotes.FFZ_PEEPO_HAPPY.toHTMLString(plugin.modIconsStart)), 5000);
+				data.getDisplayName(), ChessEmotes.PeepoHappy.toHTMLString(plugin.modIconsStart)), 5000);
 	}
 }
