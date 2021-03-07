@@ -78,7 +78,7 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.plugins.chatnotifications.OverheadTextInfo;
+import net.runelite.client.plugins.chess.OverheadTextInfo;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
