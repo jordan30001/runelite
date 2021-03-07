@@ -1,26 +1,12 @@
 package net.runelite.client.plugins.chess;
 
-import java.awt.Color;
-import java.awt.event.ActionListener;
-import java.util.Timer;
-import java.util.TimerTask;
-
-import com.github.twitch4j.pubsub.domain.HypeTrainApproaching;
-import com.github.twitch4j.pubsub.events.ChannelBitsEvent;
-import com.github.twitch4j.pubsub.events.ChannelCommerceEvent;
-import com.github.twitch4j.pubsub.events.ChannelSubGiftEvent;
-import com.github.twitch4j.pubsub.events.ChannelSubscribeEvent;
-import com.github.twitch4j.pubsub.events.CheerbombEvent;
-import com.github.twitch4j.pubsub.events.FollowingEvent;
-import com.github.twitch4j.pubsub.events.HypeTrainApproachingEvent;
-import com.github.twitch4j.pubsub.events.HypeTrainEndEvent;
-import com.github.twitch4j.pubsub.events.HypeTrainStartEvent;
-import com.github.twitch4j.pubsub.events.RewardRedeemedEvent;
-import com.github.twitch4j.pubsub.events.HypeTrainConductorUpdateEvent;
-import com.github.twitch4j.pubsub.events.HypeTrainLevelUpEvent;
-
+import com.github.twitch4j.pubsub.events.*;
 import net.runelite.api.Player;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
+
+import java.awt.*;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class TwitchEventRunners {
 
@@ -54,7 +40,7 @@ public class TwitchEventRunners {
 		
 		/**
 		 * from twitch integration switch statemetn
-		 * 
+		 *
 		}
 			break;
 		case "chesskill": {
@@ -81,9 +67,8 @@ public class TwitchEventRunners {
 
 		if (color == null) {
 			Player localPlayer = plugin.client.getLocalPlayer();
-			// TODO: blade needs to fix this in his git ignore
-			String curOverhead = "<bold>Beep Boop Invalid Color: " + event.getRedemption().getUserInput() + "<img="
-					+ (1/* plugin.modIconsStart + ChessEmotes.SADKEK.ordinal() */) + ">";
+			String curOverhead = "Beep Boop Invalid Color: " + event.getRedemption().getUserInput() + "<img="
+					+ (plugin.modIconsStart + ChessEmotes.SADKEK.ordinal()) + ">";
 			localPlayer.setOverheadText(curOverhead);
 			TimerTask task = Utils.WrapTimerTask(() -> {
 				if (localPlayer.getOverheadText().equals(curOverhead))
