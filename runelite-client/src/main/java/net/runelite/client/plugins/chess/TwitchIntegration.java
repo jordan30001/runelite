@@ -17,10 +17,15 @@ import com.netflix.hystrix.HystrixCommand;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Timer;
+import java.util.TimerTask;
 
 @Slf4j
 public class TwitchIntegration {
@@ -29,11 +34,13 @@ public class TwitchIntegration {
     private ChessConfig config;
     private ChessOverlay overlay;
     private ChessPlugin plugin;
+    private Timer timer;
 
     public TwitchIntegration(ChessConfig config, ChessPlugin plugin, ChessOverlay overlay) {
         this.config = config;
         this.overlay = overlay;
         this.plugin = plugin;
+        this.timer = new Timer(true);
     }
 
     public void start() {
@@ -73,54 +80,28 @@ public class TwitchIntegration {
             PrintWriter pw = new PrintWriter(sw);
             e.printStackTrace(pw);
 
-            //user.login - lowercase
-            //user.displayname - case sensitive
-            //reward.ChannelPointsReward
-                //title
-                //prompt
 
-/*
-
-ChannelPointsRedemption(id=938b349c-9031-4a7c-a333-98391b5f5cc2
-	 user=ChannelPointsUser(id=254547888
-	    login=bladebtw
-	    displayName=BladeBTW)
-	 channelId=254547888
-	 redeemedAt=2021-03-06T23:00:05.746467133Z
-	 reward=ChannelPointsReward(id=149637ed-048c-4f02-ada1-3895b5fbbab1
-	    channelId=254547888
-	    title=Hydrate!
-	    prompt=Make me take a sip of water
-	    cost=300
-	    isUserInputRequired=false
-	    isSubOnly=false
-	    image=null
-        defaultImage=ChannelPointsReward.Image(url1x=https://static-cdn.jtvnw.net/custom-reward-images/tree-1.png
-        url2x=https://static-cdn.jtvnw.net/custom-reward-images/tree-2.png
-        url4x=https://static-cdn.jtvnw.net/custom-reward-images/tree-4.png)
-        backgroundColor=#00E5CB
-        isEnabled=true
-        isPaused=false
-        isInStock=true
-	 maxPerStream=ChannelPointsReward.MaxPerStream(isEnabled=true
-	    maxPerStream=10)
-	 shouldRedemptionsSkipRequestQueue=false
-	    updatedForIndicatorAt=2020-07-28T14:40:42.012417132Z)
-	 userInput=null
-	 status=UNFULFILLED)
-
- */
             //bad twitch4j leaking our informaiton, lets get rid of it :(
             throw new RuntimeException(sw.toString().replace(config.OAUthCode(), ""));
         }
     }
 
     public void OnChannelPointsRedeemed(RewardRedeemedEvent event) {
-        System.err.println(event.getRedemption().toString());
-        switch(event.getRedemption().getReward().getTitle()){
-            case "chesschangeblack":
-            case "chesschangewhite": {
 
+        //user.login - lowercase
+        //user.displayname - case sensitive
+        //reward.ChannelPointsReward
+        //title
+        //prompt
+        System.err.println(event.getRedemption().toString());
+        switch (event.getRedemption().getReward().getTitle()) {
+            case "Change Black Chessboard Tiles":
+            case "Change White Chessboard Tiles": {
+                boolean isBlack = event.getRedemption().getReward().getTitle().equals("Change Black Chessboard Tiles");
+                Color color = ColorFromString(event.getRedemption().getUserInput(), isBlack ? config.blackTileColor() : config.whiteTileColor());
+                if (isBlack) plugin.configManager.setConfiguration("chess", "blackTileColor", color.getRGB());
+                else plugin.configManager.setConfiguration("chess", "whiteTileColor", color.getRGB());
+                //(CONFIG_GROUP, REGION_PREFIX + regionId, json);
             }
             break;
             case "chesskill": {
@@ -138,5 +119,58 @@ ChannelPointsRedemption(id=938b349c-9031-4a7c-a333-98391b5f5cc2
             }
             break;
         }
+    }
+
+    public Color ColorFromString(String str, Color defaultColor) {
+        if (str.indexOf("#") >= 0) {
+            return new Color(Integer.valueOf(str.substring(1, 3), 16),
+                    Integer.valueOf(str.substring(3, 5), 16),
+                    Integer.valueOf(str.substring(5, 7), 16));
+        } else {
+            switch (str.toLowerCase()) {
+                case "black":
+                    return Color.BLACK;
+                case "blue":
+                    return Color.BLUE;
+                case "cyan":
+                    return Color.CYAN;
+                case "darkgray":
+                    return Color.DARK_GRAY;
+                case "gray":
+                    return Color.GRAY;
+                case "green":
+                    return Color.GREEN;
+                case "yellow":
+                    return Color.YELLOW;
+                case "lightgray":
+                    return Color.LIGHT_GRAY;
+                case "magneta":
+                    return Color.MAGENTA;
+                case "orange":
+                    return Color.ORANGE;
+                case "pink":
+                    return Color.PINK;
+                case "red":
+                    return Color.RED;
+                case "white":
+                    return Color.WHITE;
+                default:
+                    String curOverhead = "Beep Boop: Invalid Color: " + str;
+                    plugin.client.getLocalPlayer().setOverheadText(curOverhead);
+                    ActionListener listener = (ActionListener) e -> {
+
+                    };
+                    TimerTask task = new TimerTask() {
+                        @Override
+                        public void run() {
+                            if (plugin.client.getLocalPlayer().getOverheadText().equals(curOverhead)) {
+                                plugin.client.getLocalPlayer().setOverheadText("");
+                            }
+                        }
+                    };
+                    timer.schedule(task, 6000);
+            }
+        }
+        return defaultColor;
     }
 }

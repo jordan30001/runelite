@@ -40,6 +40,7 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.FriendChatManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.emojis.EmojiPlugin;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ColorUtil;
 

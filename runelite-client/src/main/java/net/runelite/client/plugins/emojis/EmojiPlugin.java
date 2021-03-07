@@ -81,6 +81,7 @@ public class EmojiPlugin extends Plugin
 
 	private void loadEmojiIcons()
 	{
+		//TODO: emojis overhead
 		final IndexedSprite[] modIcons = client.getModIcons();
 		if (modIconsStart != -1 || modIcons == null)
 		{
@@ -166,6 +167,7 @@ public class EmojiPlugin extends Plugin
 	@Nullable
 	String updateMessage(final String message)
 	{
+		//TODO: emojis overhead
 		final String[] messageWords = WHITESPACE_REGEXP.split(message);
 
 		boolean editedMessage = false;
