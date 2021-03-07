@@ -15,7 +15,6 @@ project.properties
 /cache/cache.eml
 /cache-client/cache-client.eml
 /cache-updater/cache-updater.eml
-/runelite-client/src/main/java/net/runelite/client/plugins/chess/ChessEmotes.java
 /runelite-client/client.eml
 /runelite-client/src/main/java/net/runelite/client/plugins/worldmap/DungeonPoint.java
 /runelite-client/src/main/java/net/runelite/client/plugins/worldmap/FairyRingPoint.java
