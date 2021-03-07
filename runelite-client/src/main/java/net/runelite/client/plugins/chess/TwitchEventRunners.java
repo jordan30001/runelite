@@ -76,6 +76,7 @@ public class TwitchEventRunners {
 			});
 
 			timer.schedule(task, 6000);
+			return;
 		}
 		if ("Change Black Chessboard Tiles".equals(eventType)) {
 			plugin.configManager.setConfiguration("chess", "blackTileColor", color.getRGB());

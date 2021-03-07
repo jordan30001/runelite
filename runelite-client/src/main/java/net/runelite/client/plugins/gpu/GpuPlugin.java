@@ -105,11 +105,11 @@ import static org.jocl.CL.CL_MEM_WRITE_ONLY;
 import static org.jocl.CL.clCreateFromGLBuffer;
 
 @PluginDescriptor(
-	name = "GPU",
-	description = "Utilizes the GPU",
-	enabledByDefault = false,
-	tags = {"fog", "draw distance"},
-	loadInSafeMode = false
+		name = "GPU",
+		description = "Utilizes the GPU",
+		enabledByDefault = false,
+		tags = {"fog", "draw distance"},
+		loadInSafeMode = false
 )
 @Slf4j
 public class GpuPlugin extends Plugin implements DrawCallbacks
@@ -162,28 +162,28 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 	private GLDrawable glDrawable;
 
 	static final String LINUX_VERSION_HEADER =
-		"#version 420\n" +
-			"#extension GL_ARB_compute_shader : require\n" +
-			"#extension GL_ARB_shader_storage_buffer_object : require\n" +
-			"#extension GL_ARB_explicit_attrib_location : require\n";
+			"#version 420\n" +
+					"#extension GL_ARB_compute_shader : require\n" +
+					"#extension GL_ARB_shader_storage_buffer_object : require\n" +
+					"#extension GL_ARB_explicit_attrib_location : require\n";
 	static final String WINDOWS_VERSION_HEADER = "#version 430\n";
 
 	static final Shader PROGRAM = new Shader()
-		.add(GL4.GL_VERTEX_SHADER, "vert.glsl")
-		.add(GL4.GL_FRAGMENT_SHADER, "frag.glsl");
+			.add(GL4.GL_VERTEX_SHADER, "vert.glsl")
+			.add(GL4.GL_FRAGMENT_SHADER, "frag.glsl");
 
 	static final Shader COMPUTE_PROGRAM = new Shader()
-		.add(GL4.GL_COMPUTE_SHADER, "comp.glsl");
+			.add(GL4.GL_COMPUTE_SHADER, "comp.glsl");
 
 	static final Shader SMALL_COMPUTE_PROGRAM = new Shader()
-		.add(GL4.GL_COMPUTE_SHADER, "comp_small.glsl");
+			.add(GL4.GL_COMPUTE_SHADER, "comp_small.glsl");
 
 	static final Shader UNORDERED_COMPUTE_PROGRAM = new Shader()
-		.add(GL4.GL_COMPUTE_SHADER, "comp_unordered.glsl");
+			.add(GL4.GL_COMPUTE_SHADER, "comp_unordered.glsl");
 
 	static final Shader UI_PROGRAM = new Shader()
-		.add(GL4.GL_VERTEX_SHADER, "vertui.glsl")
-		.add(GL4.GL_FRAGMENT_SHADER, "fragui.glsl");
+			.add(GL4.GL_VERTEX_SHADER, "vertui.glsl")
+			.add(GL4.GL_FRAGMENT_SHADER, "fragui.glsl");
 
 	private int glProgram;
 	private int glComputeProgram;
@@ -309,8 +309,8 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 				}
 
 				computeMode = config.useComputeShaders()
-					? (OSType.getOSType() == OSType.MacOS ? ComputeMode.OPENCL : ComputeMode.OPENGL)
-					: ComputeMode.NONE;
+						? (OSType.getOSType() == OSType.MacOS ? ComputeMode.OPENCL : ComputeMode.OPENGL)
+						: ComputeMode.NONE;
 
 				canvas.setIgnoreRepaint(true);
 
@@ -379,7 +379,7 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 
 						// Suppress warning messages which flood the log on NVIDIA systems.
 						gl.getContext().glDebugMessageControl(gl.GL_DEBUG_SOURCE_API, gl.GL_DEBUG_TYPE_OTHER,
-							gl.GL_DEBUG_SEVERITY_NOTIFICATION, 0, null, 0, false);
+								gl.GL_DEBUG_SEVERITY_NOTIFICATION, 0, null, 0, false);
 					}
 
 					initVao();
@@ -607,11 +607,11 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 
 		FloatBuffer vboUiBuf = GpuFloatBuffer.allocateDirect(5 * 4);
 		vboUiBuf.put(new float[]{
-			// positions     // texture coords
-			1f, 1f, 0.0f, 1.0f, 0f, // top right
-			1f, -1f, 0.0f, 1.0f, 1f, // bottom right
-			-1f, -1f, 0.0f, 0.0f, 1f, // bottom left
-			-1f, 1f, 0.0f, 0.0f, 0f  // top left
+				// positions     // texture coords
+				1f, 1f, 0.0f, 1.0f, 0f, // top right
+				1f, -1f, 0.0f, 1.0f, 1f, // bottom right
+				-1f, -1f, 0.0f, 0.0f, 1f, // bottom left
+				-1f, 1f, 0.0f, 0.0f, 0f  // top left
 		});
 		vboUiBuf.rewind();
 		gl.glBindBuffer(GL_ARRAY_BUFFER, vboUiHandle);
@@ -789,14 +789,14 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 			vertexBuffer.ensureCapacity(32);
 			IntBuffer uniformBuf = vertexBuffer.getBuffer();
 			uniformBuf
-				.put(yaw)
-				.put(pitch)
-				.put(client.getCenterX())
-				.put(client.getCenterY())
-				.put(client.getScale())
-				.put(cameraX)
-				.put(cameraY)
-				.put(cameraZ);
+					.put(yaw)
+					.put(pitch)
+					.put(client.getCenterX())
+					.put(client.getCenterY())
+					.put(client.getScale())
+					.put(cameraX)
+					.put(cameraY)
+					.put(cameraZ);
 			uniformBuf.flip();
 
 			gl.glBindBuffer(GL_UNIFORM_BUFFER, uniformBuffer.glBufferId);
@@ -854,17 +854,17 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 
 		// Output buffers
 		updateBuffer(tmpOutBuffer,
-			GL_ARRAY_BUFFER,
-			targetBufferOffset * 16, // each vertex is an ivec4, which is 16 bytes
-			null,
-			GL_STREAM_DRAW,
-			CL_MEM_WRITE_ONLY);
+				GL_ARRAY_BUFFER,
+				targetBufferOffset * 16, // each vertex is an ivec4, which is 16 bytes
+				null,
+				GL_STREAM_DRAW,
+				CL_MEM_WRITE_ONLY);
 		updateBuffer(tmpOutUvBuffer,
-			GL_ARRAY_BUFFER,
-			targetBufferOffset * 16, // each vertex is an ivec4, which is 16 bytes
-			null,
-			GL_STREAM_DRAW,
-			CL_MEM_WRITE_ONLY);
+				GL_ARRAY_BUFFER,
+				targetBufferOffset * 16, // each vertex is an ivec4, which is 16 bytes
+				null,
+				GL_STREAM_DRAW,
+				CL_MEM_WRITE_ONLY);
 
 		if (computeMode == ComputeMode.OPENCL)
 		{
@@ -874,12 +874,12 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 			// gl.glFinish();
 
 			openCLManager.compute(
-				unorderedModels, smallModels, largeModels,
-				sceneVertexBuffer, sceneUvBuffer,
-				tmpVertexBuffer, tmpUvBuffer,
-				tmpModelBufferUnordered, tmpModelBufferSmall, tmpModelBufferLarge,
-				tmpOutBuffer, tmpOutUvBuffer,
-				uniformBuffer);
+					unorderedModels, smallModels, largeModels,
+					sceneVertexBuffer, sceneUvBuffer,
+					tmpVertexBuffer, tmpUvBuffer,
+					tmpModelBufferUnordered, tmpModelBufferSmall, tmpModelBufferLarge,
+					tmpOutBuffer, tmpOutUvBuffer,
+					uniformBuffer);
 			return;
 		}
 
@@ -934,17 +934,17 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 
 	@Override
 	public void drawScenePaint(int orientation, int pitchSin, int pitchCos, int yawSin, int yawCos, int x, int y, int z,
-							SceneTilePaint paint, int tileZ, int tileX, int tileY,
-							int zoom, int centerX, int centerY)
+							   SceneTilePaint paint, int tileZ, int tileX, int tileY,
+							   int zoom, int centerX, int centerY)
 	{
 		if (computeMode == ComputeMode.NONE)
 		{
 			targetBufferOffset += sceneUploader.upload(paint,
-				tileZ, tileX, tileY,
-				vertexBuffer, uvBuffer,
-				Perspective.LOCAL_TILE_SIZE * tileX,
-				Perspective.LOCAL_TILE_SIZE * tileY,
-				true
+					tileZ, tileX, tileY,
+					vertexBuffer, uvBuffer,
+					Perspective.LOCAL_TILE_SIZE * tileX,
+					Perspective.LOCAL_TILE_SIZE * tileY,
+					true
 			);
 		}
 		else if (paint.getBufferLen() > 0)
@@ -971,15 +971,15 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 
 	@Override
 	public void drawSceneModel(int orientation, int pitchSin, int pitchCos, int yawSin, int yawCos, int x, int y, int z,
-							SceneTileModel model, int tileZ, int tileX, int tileY,
-							int zoom, int centerX, int centerY)
+							   SceneTileModel model, int tileZ, int tileX, int tileY,
+							   int zoom, int centerX, int centerY)
 	{
 		if (computeMode == ComputeMode.NONE)
 		{
 			targetBufferOffset += sceneUploader.upload(model,
-				tileX, tileY,
-				vertexBuffer, uvBuffer,
-				tileX << Perspective.LOCAL_COORD_BITS, tileY << Perspective.LOCAL_COORD_BITS, true);
+					tileX, tileY,
+					vertexBuffer, uvBuffer,
+					tileX << Perspective.LOCAL_COORD_BITS, tileY << Perspective.LOCAL_COORD_BITS, true);
 		}
 		else if (model.getBufferLen() > 0)
 		{
@@ -1073,8 +1073,8 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 
 			// Re-create fbo
 			if (lastStretchedCanvasWidth != stretchedCanvasWidth
-				|| lastStretchedCanvasHeight != stretchedCanvasHeight
-				|| lastAntiAliasingMode != antiAliasingMode)
+					|| lastStretchedCanvasHeight != stretchedCanvasHeight
+					|| lastAntiAliasingMode != antiAliasingMode)
 			{
 				shutdownAAFbo();
 
@@ -1251,8 +1251,8 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 			gl.glBindFramebuffer(gl.GL_READ_FRAMEBUFFER, fboSceneHandle);
 			gl.glBindFramebuffer(gl.GL_DRAW_FRAMEBUFFER, 0);
 			gl.glBlitFramebuffer(0, 0, lastStretchedCanvasWidth, lastStretchedCanvasHeight,
-				0, 0, lastStretchedCanvasWidth, lastStretchedCanvasHeight,
-				gl.GL_COLOR_BUFFER_BIT, gl.GL_NEAREST);
+					0, 0, lastStretchedCanvasWidth, lastStretchedCanvasHeight,
+					gl.GL_COLOR_BUFFER_BIT, gl.GL_NEAREST);
 
 			// Reset
 			gl.glBindFramebuffer(gl.GL_READ_FRAMEBUFFER, 0);
@@ -1280,12 +1280,12 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 	private float[] makeProjectionMatrix(float w, float h, float n)
 	{
 		return new float[]
-		{
-			2 / w, 0, 0, 0,
-			0, 2 / h, 0, 0,
-			0, 0, -1, -1,
-			0, 0, -2 * n, 0
-		};
+				{
+						2 / w, 0, 0, 0,
+						0, 2 / h, 0, 0,
+						0, 0, -1, -1,
+						0, 0, -2 * n, 0
+				};
 	}
 
 	private void drawUi(final int overlayColor, final int canvasHeight, final int canvasWidth)
@@ -1317,10 +1317,10 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 		gl.glUniform2i(uniTexSourceDimensions, canvasWidth, canvasHeight);
 		gl.glUniform1i(uniUiColorBlindMode, config.colorBlindMode().ordinal());
 		gl.glUniform4f(uniUiAlphaOverlay,
-			(overlayColor >> 16 & 0xFF) / 255f,
-			(overlayColor >> 8 & 0xFF) / 255f,
-			(overlayColor & 0xFF) / 255f,
-			(overlayColor >>> 24) / 255f
+				(overlayColor >> 16 & 0xFF) / 255f,
+				(overlayColor >> 8 & 0xFF) / 255f,
+				(overlayColor & 0xFF) / 255f,
+				(overlayColor >>> 24) / 255f
 		);
 
 		if (client.isStretchedEnabled())
@@ -1387,7 +1387,7 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 		}
 
 		ByteBuffer buffer = ByteBuffer.allocateDirect(width * height * 4)
-			.order(ByteOrder.nativeOrder());
+				.order(ByteOrder.nativeOrder());
 
 		gl.glReadBuffer(gl.GL_FRONT);
 		gl.glReadPixels(0, 0, width, height, GL.GL_RGBA, gl.GL_UNSIGNED_BYTE, buffer);
@@ -1680,10 +1680,10 @@ public class GpuPlugin extends Plugin implements DrawCallbacks
 			final Graphics2D graphics = (Graphics2D) canvas.getGraphics();
 			final AffineTransform t = graphics.getTransform();
 			gl.glViewport(
-				getScaledValue(t.getScaleX(), x),
-				getScaledValue(t.getScaleY(), y),
-				getScaledValue(t.getScaleX(), width),
-				getScaledValue(t.getScaleY(), height));
+					getScaledValue(t.getScaleX(), x),
+					getScaledValue(t.getScaleY(), y),
+					getScaledValue(t.getScaleX(), width),
+					getScaledValue(t.getScaleY(), height));
 			graphics.dispose();
 		}
 	}
