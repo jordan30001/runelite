@@ -1,11 +1,12 @@
 package net.runelite.client.plugins.chess;
 
 import java.awt.Color;
-import java.awt.event.ActionListener;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import com.github.twitch4j.pubsub.domain.HypeTrainApproaching;
+import com.github.twitch4j.chat.events.roomstate.FollowersOnlyEvent;
+import com.github.twitch4j.pubsub.domain.FollowingData;
+import com.github.twitch4j.pubsub.domain.SubscriptionData;
 import com.github.twitch4j.pubsub.events.ChannelBitsEvent;
 import com.github.twitch4j.pubsub.events.ChannelCommerceEvent;
 import com.github.twitch4j.pubsub.events.ChannelSubGiftEvent;
@@ -13,26 +14,28 @@ import com.github.twitch4j.pubsub.events.ChannelSubscribeEvent;
 import com.github.twitch4j.pubsub.events.CheerbombEvent;
 import com.github.twitch4j.pubsub.events.FollowingEvent;
 import com.github.twitch4j.pubsub.events.HypeTrainApproachingEvent;
+import com.github.twitch4j.pubsub.events.HypeTrainConductorUpdateEvent;
 import com.github.twitch4j.pubsub.events.HypeTrainEndEvent;
+import com.github.twitch4j.pubsub.events.HypeTrainLevelUpEvent;
 import com.github.twitch4j.pubsub.events.HypeTrainStartEvent;
 import com.github.twitch4j.pubsub.events.RewardRedeemedEvent;
-import com.github.twitch4j.pubsub.events.HypeTrainConductorUpdateEvent;
-import com.github.twitch4j.pubsub.events.HypeTrainLevelUpEvent;
 
+import com.github.twitch4j.pubsub.events.*;
 import net.runelite.api.Player;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
+
+import java.awt.*;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class TwitchEventRunners {
 
 	private ChessPlugin plugin;
 	private ChessOverlay overlay;
 
-	private Timer timer;
-
 	public TwitchEventRunners(ChessPlugin plugin, ChessOverlay overlay) {
 		this.plugin = plugin;
 		this.overlay = overlay;
-		this.timer = new Timer(true);
 	}
 
 	public void init() {
@@ -51,27 +54,22 @@ public class TwitchEventRunners {
 		eventManager.RegisterPubSubListener(HypeTrainEndEvent.class);
 
 		eventManager.RegisterListener(RewardRedeemedEvent.class, this::CheckChessBoardColorChange);
-		
+		eventManager.RegisterListener(ChannelSubscribeEvent.class, this::onTwitchSub);
+		eventManager.RegisterListener(FollowingEvent.class, this::onFollower);
+
 		/**
 		 * from twitch integration switch statemetn
+		 *
+		 * } break; case "chesskill": {
 		 * 
-		}
-			break;
-		case "chesskill": {
+		 * } break; case "chessdance": {
+		 * 
+		 * } break;
+		 * 
+		 * case "chesssubtime": case "chessaddtime": {
+		 * 
+		 * } break; }
 
-		}
-			break;
-		case "chessdance": {
-
-		}
-			break;
-
-		case "chesssubtime":
-		case "chessaddtime": {
-
-		}
-			break;
-		}
 		 */
 	}
 
@@ -80,17 +78,9 @@ public class TwitchEventRunners {
 		Color color = Utils.ColorFromString(event.getRedemption().getUserInput());
 
 		if (color == null) {
-			Player localPlayer = plugin.client.getLocalPlayer();
-			// TODO: blade needs to fix this in his git ignore
-			String curOverhead = "<bold>Beep Boop Invalid Color: " + event.getRedemption().getUserInput() + "<img="
-					+ (1/* plugin.modIconsStart + ChessEmotes.SADKEK.ordinal() */) + ">";
-			localPlayer.setOverheadText(curOverhead);
-			TimerTask task = Utils.WrapTimerTask(() -> {
-				if (localPlayer.getOverheadText().equals(curOverhead))
-					localPlayer.setOverheadText("");
-			});
 
-			timer.schedule(task, 6000);
+			plugin.queueOverheadText(String.format("Beep Boop Invalid Color: %s", event.getRedemption().getUser(),
+					ChessEmotes.SADKEK.toHTMLString(plugin.modIconsStart)), 6000);
 		}
 		if ("Change Black Chessboard Tiles".equals(eventType)) {
 			plugin.configManager.setConfiguration("chess", "blackTileColor", color.getRGB());
@@ -98,7 +88,37 @@ public class TwitchEventRunners {
 		if ("Change White Chessboard Tiles".equals(eventType)) {
 			plugin.configManager.setConfiguration("chess", "whiteTileColor", color.getRGB());
 		}
-
 	}
 
+	public void onTwitchSub(ChannelSubscribeEvent event) {
+		SubscriptionData data = event.getData();
+		switch (data.getSubPlan()) {
+		case TIER1:
+			plugin.queueOverheadText(String.format("%s just subscribed %s", data.getDisplayName(),
+					ChessEmotes.BLADE_POG.toHTMLString(plugin.modIconsStart)), 5000);
+			break;
+		case TIER2:
+			plugin.queueOverheadText(String.format("%s just subscribed %s", data.getDisplayName(),
+					ChessEmotes.FFZ_HANDS_UP.toHTMLString(plugin.modIconsStart)), 5000);
+			break;
+		case TIER3:
+			plugin.queueOverheadText(String.format("%s just subscribed %s", data.getDisplayName(),
+					ChessEmotes.FFZ_WIDE_PEEPO_HAPPY.toHTMLString(plugin.modIconsStart)), 5000);
+			break;
+		case TWITCH_PRIME:
+			plugin.queueOverheadText(String.format("%s just subscribed %s", data.getDisplayName(),
+					ChessEmotes.PRIME_YOU_DONT_SAY.toHTMLString(plugin.modIconsStart)), 5000);
+			break;
+		case NONE:
+		default:
+			break;
+
+		}
+	}
+
+	public void onFollower(FollowingEvent event) {
+		FollowingData data = event.getData();
+		plugin.queueOverheadText(String.format("Thanks for following %s%s",
+				data.getDisplayName(), ChessEmotes.FFZ_PEEPO_HAPPY.toHTMLString(plugin.modIconsStart)), 5000);
+	}
 }
