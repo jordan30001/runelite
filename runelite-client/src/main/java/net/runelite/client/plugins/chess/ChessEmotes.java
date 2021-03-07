@@ -34,14 +34,21 @@ import java.util.Map;
 import net.runelite.client.util.ImageUtil;
 
 public enum ChessEmotes {
-    KAPPA("kappa"),
-    MINIK("minik"),
-    MINIMINIK("miniminik"),
-    SADKEK("sadkek"),
-    BLADE_POG("bladepog"), 
-    FFZ_HANDS_UP("handsup"), 
-    FFZ_WIDE_PEEPO_HAPPY("widepeepohappy"), 
-    PRIME_YOU_DONT_SAY("youdontsay"), FFZ_PEEPO_HAPPY
+    ThreeHead("3Head"),
+    FourHead("4Head"),
+    FiveHead("5Head"),
+    Bladeb7PogChamp("bladeb7PogChamp"),
+    FlipThis("FlipThis"),
+    HandsUp("HandsUp"),
+    Kappa("Kappa"),
+    KEKW("KEKW"),
+    MiniK("MiniK"),
+    PeepoHappy("PeepoHappy"),
+    Pog("Pog"),
+    PrimeWhatYouSay("PrimeWhatYouSay"),
+    SadKek("sadKEK"),
+    TableHere("TableHere"),
+    WidePeepoHappy("widePeepoHappy")
     ;
 
     private static final Map<String, ChessEmotes> emojiMap;
@@ -69,9 +76,7 @@ public enum ChessEmotes {
     static ChessEmotes getEmoji(String trigger) {
         return emojiMap.get(trigger);
     }
-    
     String toHTMLString(int startingOrdinal){
     	return "<img=" + (startingOrdinal + this.ordinal()) + ">";
     }
 }
-
