@@ -80,4 +80,3 @@ public enum ChessEmotes {
     	return "<img=" + (startingOrdinal + this.ordinal()) + ">";
     }
 }
-

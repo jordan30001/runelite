@@ -46,6 +46,9 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 
+import com.github.bhlangonijr.chesslib.Board;
+import com.github.bhlangonijr.chesslib.Piece;
+import com.github.bhlangonijr.chesslib.Square;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -78,24 +81,12 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.plugins.chess.OverheadTextInfo;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 
-import javax.annotation.Nullable;
-import javax.inject.Inject;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.util.List;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 @Slf4j
-@PluginDescriptor(name = "Chess", description = "Chess plugin", tags = {"config", "chess"})
+@PluginDescriptor(name = "Chess", description = "Chess plugin", tags = { "config", "chess" })
 
 public class ChessPlugin extends Plugin {
 	private static final String CONFIG_GROUP = "chessMarker";
@@ -153,6 +144,8 @@ public class ChessPlugin extends Plugin {
 	private TwitchEventRunners twitchListeners;
 	public int modIconsStart = -1;
 	private BlockingQueue<OverheadTextInfo> overheadTextQueue;
+	@Getter
+	private ChessHandler chessHandler;
 
 	@Override
 	protected void startUp() throws Exception {
@@ -391,12 +384,13 @@ public class ChessPlugin extends Plugin {
 		List<ChessMarkerPoint> chessTiles = new ArrayList<>();
 
 		if (doUnmark == false) {
-			for (int y = 0; y < 10; y++) {
-				for (int x = 0; x < 10; x++) {
+			for (int y = 0; y < 10; y++) {//letters
+				for (int x = 0; x < 10; x++) {//numbers
 					chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x,
 							worldPoint.getRegionY() + y, client.getPlane(), WhatColor(x, y), WhatLabel(x, y)));
 
 					if (updateVisuals == false) {
+						chessHandler = new ChessHandler(this, overlay, new Board());
 						if ((x >= 1 || x <= 9) && (y >= 1 && y <= 9)) {
 							Optional<Player> playerOnTile = Stream
 									.concat(Stream.of(client.getLocalPlayer()), client.getPlayers().stream())
@@ -414,6 +408,7 @@ public class ChessPlugin extends Plugin {
 											continue;
 										player.setOverheadText(pieceType);
 										// notify chess engine of this piece
+										chessHandler.initPiece(x, y, pieceType);
 									}
 								}
 							}
@@ -499,7 +494,7 @@ public class ChessPlugin extends Plugin {
 			if (x == 9) {
 				return null;
 			}
-			return getCharForNumber(x);
+			return Utils.getCharForNumber(x);
 		}
 		if (x == 0 || x == 9) {
 			if (y == 9) {
@@ -509,9 +504,4 @@ public class ChessPlugin extends Plugin {
 		}
 		return null;
 	}
-
-	private String getCharForNumber(int i) {
-		return i > 0 && i < 27 ? String.valueOf((char) (i + 64)) : null;
-	}
-
 }
