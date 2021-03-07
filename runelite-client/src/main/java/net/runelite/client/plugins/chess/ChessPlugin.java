@@ -25,6 +25,7 @@
  */
 package net.runelite.client.plugins.chess;
 
+import com.github.bhlangonijr.chesslib.Board;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -50,19 +51,23 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
-import net.runelite.client.util.Text;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.Inet4Address;
+import java.net.URL;
 import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 @Slf4j
 @PluginDescriptor(name = "Chess", description = "Chess plugin", tags = {"config", "chess"})
@@ -119,16 +124,16 @@ public class ChessPlugin extends Plugin {
     private LocalPoint localPoint;
     private WorldPoint worldPoint;
     private TwitchIntegration twitch;
-    private int modIconsStart = -1;
+    public int modIconsStart = -1;
 
-    void savePoints(int regionId, Collection<ChessMarkerPoint> points) {
+    void savePoints(Collection<ChessMarkerPoint> points) {
         if (points == null || points.isEmpty()) {
-            configManager.unsetConfiguration(CONFIG_GROUP, REGION_PREFIX + regionId);
+            configManager.unsetConfiguration(CONFIG_GROUP, REGION_PREFIX);
             return;
         }
 
         String json = gson.toJson(points);
-        configManager.setConfiguration(CONFIG_GROUP, REGION_PREFIX + regionId, json);
+        configManager.setConfiguration(CONFIG_GROUP, REGION_PREFIX, json);
     }
 
     @Provides
@@ -148,15 +153,15 @@ public class ChessPlugin extends Plugin {
         for (int regionId : regions) {
             // load points for region
             log.debug("Loading points for region {}", regionId);
-            Collection<ChessMarkerPoint> regionPoints = getPoints(regionId);
+            Collection<ChessMarkerPoint> regionPoints = getPointsFromConfig();
             Collection<net.runelite.client.plugins.chess.ColorTileMarker> colorTileMarkers = translateToColorTileMarker(
                     regionPoints);
             points.addAll(colorTileMarkers);
         }
     }
 
-    Collection<ChessMarkerPoint> getPoints(int regionId) {
-        String json = configManager.getConfiguration(CONFIG_GROUP, REGION_PREFIX + regionId);
+    private Collection<ChessMarkerPoint> getPointsFromConfig() {
+        String json = configManager.getConfiguration(CONFIG_GROUP, REGION_PREFIX);
         if (Strings.isNullOrEmpty(json)) {
             return Collections.emptyList();
         }
@@ -191,6 +196,7 @@ public class ChessPlugin extends Plugin {
         loadPoints();
         this.config = overlay.config;
         onConfigChanged(null);
+        loadEmojiIcons();
     }
 
     @Override
@@ -257,7 +263,6 @@ public class ChessPlugin extends Plugin {
 
         if (event != null) {
             if (event.getKey().equals("whiteTileColor") || event.getKey().equals("blackTileColor")) {
-                System.err.println("hello!");
                 LocalPoint localPoint = gson.fromJson(configManager.getConfiguration("chess", "localtile"), LocalPoint.class);
                 markTile(localPoint, false, false, true);
             }
@@ -277,8 +282,8 @@ public class ChessPlugin extends Plugin {
             final WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, selectedSceneTile.getLocalLocation());
             final int regionId = worldPoint.getRegionID();
             //SW_Chess_Tile = new ChessMarkerPoint(regionId, worldPoint.getRegionX(), worldPoint.getRegionY(),
-             //       client.getPlane(), null, null);
-            final boolean exists = getPoints(regionId).size() > 0;//.contains(SW_Chess_Tile);
+            //       client.getPlane(), null, null);
+            final boolean exists = getPointsFromConfig().size() > 0;//.contains(SW_Chess_Tile);
 
             MenuEntry[] menuEntries = client.getMenuEntries();
             menuEntries = Arrays.copyOf(menuEntries, menuEntries.length + 1);
@@ -345,7 +350,7 @@ public class ChessPlugin extends Plugin {
         return i > 0 && i < 27 ? String.valueOf((char) (i + 64)) : null;
     }
 
-    private void markTile(LocalPoint localPoint, boolean doMark,boolean doUnmark, boolean updateVisuals) {
+    private void markTile(LocalPoint localPoint, boolean doMark, boolean doUnmark, boolean updateVisuals) {
         if (localPoint == null) {
             return;
         }
@@ -354,46 +359,46 @@ public class ChessPlugin extends Plugin {
 
         int regionId = worldPoint.getRegionID();
 
-        List<ChessMarkerPoint> chessMarkerPoints = new ArrayList<>(getPoints(regionId));
+        List<ChessMarkerPoint> chessMarkerPoints = new ArrayList<>(getPointsFromConfig());
         if (updateVisuals || doUnmark) chessMarkerPoints.clear();
 
         List<ChessMarkerPoint> chessTiles = new ArrayList<>();
 
-        if(doUnmark == false){
-        for (int y = 0; y < 10; y++) {
-            for (int x = 0; x < 10; x++) {
-                chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x, worldPoint.getRegionY() + y,
-                        client.getPlane(), WhatColor(x, y), WhatLabel(x, y)));
+        if (doUnmark == false) {
+            for (int y = 0; y < 10; y++) {
+                for (int x = 0; x < 10; x++) {
+                    chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x, worldPoint.getRegionY() + y,
+                            client.getPlane(), WhatColor(x, y), WhatLabel(x, y)));
 
-                if (updateVisuals == false) {
-                    if ((x >= 1 || x <= 9) && (y >= 1 && y <= 9)) {
-                        Optional<Player> playerOnTile = Stream
-                                .concat(Stream.of(client.getLocalPlayer()), client.getPlayers().stream())
-                                .filter(curPlayer -> ChessOverlay.chessPieceUsername.contains(curPlayer.getName()))
-                                .findFirst();
-                        System.out.println(ChessOverlay.chessPieceUsername.size());
-                        if (playerOnTile.isPresent()) {
-                            Player player = playerOnTile.get();
-                            WorldPoint playerPoint = player.getWorldLocation();
-                            if (ChessOverlay.chessPieceUsername.contains(player.getName())) {
-                                if (playerPoint.getX() == worldPoint.getX() + x
-                                        && playerPoint.getY() == worldPoint.getY() + y) {
-                                    String pieceType = ChessOverlay.usernameToType.getOrDefault(player.getName(), null);
-                                    if (pieceType == null)
-                                        continue;
-                                    if (doMark == false) {
-                                        player.setOverheadText(pieceType);
-                                    } else {
-                                        player.setOverheadText("");
+                    if (updateVisuals == false) {
+                        if ((x >= 1 || x <= 9) && (y >= 1 && y <= 9)) {
+                            Optional<Player> playerOnTile = Stream
+                                    .concat(Stream.of(client.getLocalPlayer()), client.getPlayers().stream())
+                                    .filter(curPlayer -> ChessOverlay.chessPieceUsername.contains(curPlayer.getName()))
+                                    .findFirst();
+                            if (playerOnTile.isPresent()) {
+                                Player player = playerOnTile.get();
+                                WorldPoint playerPoint = player.getWorldLocation();
+                                if (ChessOverlay.chessPieceUsername.contains(player.getName())) {
+                                    if (playerPoint.getX() == worldPoint.getX() + x
+                                            && playerPoint.getY() == worldPoint.getY() + y) {
+                                        String pieceType = ChessOverlay.usernameToType.getOrDefault(player.getName(), null);
+                                        if (pieceType == null)
+                                            continue;
+                                        if (doMark == false) {
+                                            player.setOverheadText(pieceType);
+                                        } else {
+                                            player.setOverheadText("");
+                                        }
+                                        // notify chess engine of this piece
                                     }
-                                    // notify chess engine of this piece
                                 }
                             }
                         }
                     }
                 }
             }
-        }}
+        }
 
         for (ChessMarkerPoint element : chessTiles) {
             if (chessMarkerPoints.contains(element)) {
@@ -403,7 +408,7 @@ public class ChessPlugin extends Plugin {
             }
         }
 
-        savePoints(regionId, chessMarkerPoints);
+        savePoints(chessMarkerPoints);
 
         loadPoints();
     }
@@ -426,4 +431,29 @@ public class ChessPlugin extends Plugin {
         }
     }
 
+    private void loadEmojiIcons() {
+        final IndexedSprite[] modIcons = client.getModIcons();
+        if (modIconsStart != -1 || modIcons == null) {
+            return;
+        }
+
+        final ChessEmotes[] emojis = ChessEmotes.values();
+        final IndexedSprite[] newModIcons = Arrays.copyOf(modIcons, modIcons.length + emojis.length);
+        modIconsStart = modIcons.length;
+
+        for (int i = 0; i < emojis.length; i++) {
+            final ChessEmotes emoji = emojis[i];
+
+            try {
+                final BufferedImage image = emoji.loadImage();
+                final IndexedSprite sprite = ImageUtil.getImageIndexedSprite(image, client);
+                newModIcons[modIconsStart + i] = sprite;
+            } catch (Exception ex) {
+                log.warn("Failed to load the sprite for emoji " + emoji, ex);
+            }
+        }
+
+        log.debug("Adding emoji icons");
+        client.setModIcons(newModIcons);
+    }
 }

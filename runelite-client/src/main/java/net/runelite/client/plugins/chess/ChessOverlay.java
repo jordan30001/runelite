@@ -25,29 +25,22 @@
  */
 package net.runelite.client.plugins.chess;
 
-import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
-import net.runelite.api.*;
 import net.runelite.api.Point;
+import net.runelite.api.*;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.events.ChatMessage;
-import net.runelite.client.Notifier;
-import net.runelite.client.chat.ChatColorType;
-import net.runelite.client.chat.ChatMessageManager;
-import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.ui.overlay.*;
-import net.runelite.client.util.Text;
+import net.runelite.client.ui.overlay.Overlay;
+import net.runelite.client.ui.overlay.OverlayLayer;
+import net.runelite.client.ui.overlay.OverlayPosition;
+import net.runelite.client.ui.overlay.OverlayUtil;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.util.*;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+import java.util.*;
 import java.util.stream.IntStream;
 
 public class ChessOverlay extends Overlay

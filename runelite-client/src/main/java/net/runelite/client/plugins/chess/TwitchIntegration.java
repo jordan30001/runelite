@@ -14,15 +14,12 @@ import com.github.twitch4j.helix.domain.UserList;
 import com.github.twitch4j.pubsub.TwitchPubSub;
 import com.github.twitch4j.pubsub.events.RewardRedeemedEvent;
 import com.netflix.hystrix.HystrixCommand;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -155,7 +152,7 @@ public class TwitchIntegration {
                 case "white":
                     return Color.WHITE;
                 default:
-                    String curOverhead = "Beep Boop: Invalid Color: " + str;
+                    String curOverhead = "<bold>Beep Boop Invalid Color: " + str + "<img=" + (plugin.modIconsStart + ChessEmotes.SADKEK.ordinal()) + ">";
                     plugin.client.getLocalPlayer().setOverheadText(curOverhead);
                     ActionListener listener = (ActionListener) e -> {
 
@@ -164,7 +161,9 @@ public class TwitchIntegration {
                         @Override
                         public void run() {
                             if (plugin.client.getLocalPlayer().getOverheadText().equals(curOverhead)) {
-                                plugin.client.getLocalPlayer().setOverheadText("");
+                                String curOverhead = "";
+
+                                plugin.client.getLocalPlayer().setOverheadText(curOverhead);
                             }
                         }
                     };
