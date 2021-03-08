@@ -61,7 +61,7 @@ public class BlenderPlugin extends Plugin {
     private void socketConnect(Map<String, Object> params) {
         try {
             StringBuilder sb = new StringBuilder();
-            sb.append("http://localhost:5000/?");
+            sb.append("http://localhost:7000/?");
             for (Map.Entry<String, Object> entry : params.entrySet()) {
                 sb.append(entry.getKey()).append("=").append(URLEncoder.encode(entry.getValue().toString(), "utf-8")).append("&");
             }
@@ -70,7 +70,7 @@ public class BlenderPlugin extends Plugin {
             URL url = new URL(sb.toString());
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod("GET");
-            con.setConnectTimeout(5000);
+            con.setConnectTimeout(6000);
             BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
 
 //            String line;
