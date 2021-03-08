@@ -21,11 +21,15 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @PluginDescriptor(name = "Blender", description = "Blender plugin", tags = {"Blender"})
 public class BlenderPlugin extends Plugin {
     @Inject
     private Client client;
+
+    private ExecutorService es = Executors.newFixedThreadPool(1);
 
     @Override
     protected void startUp() throws Exception {
@@ -50,7 +54,7 @@ public class BlenderPlugin extends Plugin {
 
     @Subscribe
     public void onBeforeRender(BeforeRender event) {
-        socketConnect(getCamera());
+        es.submit(() -> socketConnect(getCamera()));
     }
 
 
