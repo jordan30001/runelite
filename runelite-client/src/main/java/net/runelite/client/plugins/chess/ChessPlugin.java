@@ -144,6 +144,7 @@ public class ChessPlugin extends Plugin {
 	private TwitchEventRunners twitchListeners;
 	public int modIconsStart = -1;
 	private BlockingQueue<OverheadTextInfo> overheadTextQueue;
+	private BlockingQueue<OverheadTextInfo> priorityOverheadTextQueue;
 	@Getter
 	private ChessHandler chessHandler;
 
@@ -348,7 +349,25 @@ public class ChessPlugin extends Plugin {
 	public void onBeforeRender(BeforeRender event) {
 		if (client.getLocalPlayer() == null)
 			return;
+
+		OverheadTextInfo priorityInfo = priorityOverheadTextQueue.peek();
 		OverheadTextInfo overheadInfo = overheadTextQueue.peek();
+		if (priorityInfo != null) {
+			if (overheadInfo != null) {
+				overheadInfo.reset();
+			}
+
+			if (priorityInfo.isStarted()) {
+				if (priorityInfo.isFinished())
+					priorityOverheadTextQueue.poll();
+			} else {
+				priorityInfo.startCountdown();
+				client.getPlayers().forEach(p -> p.setOverheadText(priorityInfo.getOverheadText()));
+				client.getLocalPlayer().setOverheadText(priorityInfo.getOverheadText());
+			}
+			return;
+		}
+
 		if (overheadInfo == null) {
 			client.getPlayers().forEach(p -> p.setOverheadText(""));
 			client.getLocalPlayer().setOverheadText("");
@@ -364,8 +383,11 @@ public class ChessPlugin extends Plugin {
 		}
 	}
 
-	public void queueOverheadText(String text, long timeToDisplay) {
-		overheadTextQueue.offer(new OverheadTextInfo(text, timeToDisplay));
+	public void queueOverheadText(String text, long timeToDisplay, boolean priority) {
+		if (priority)
+			priorityOverheadTextQueue.offer(new OverheadTextInfo(text, timeToDisplay));
+		else
+			overheadTextQueue.offer(new OverheadTextInfo(text, timeToDisplay));
 	}
 
 	private void markTile(LocalPoint localPoint, boolean doMark, boolean doUnmark, boolean updateVisuals) {
@@ -384,8 +406,8 @@ public class ChessPlugin extends Plugin {
 		List<ChessMarkerPoint> chessTiles = new ArrayList<>();
 
 		if (doUnmark == false) {
-			for (int y = 0; y < 10; y++) {//letters
-				for (int x = 0; x < 10; x++) {//numbers
+			for (int y = 0; y < 10; y++) {// letters
+				for (int x = 0; x < 10; x++) {// numbers
 					chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x,
 							worldPoint.getRegionY() + y, client.getPlane(), WhatColor(x, y), WhatLabel(x, y)));
 
@@ -435,17 +457,18 @@ public class ChessPlugin extends Plugin {
 	public void onChatMessage(ChatMessage msg) {
 		if (("Twitch".equals(msg.getSender()) && twitchNames.contains(msg.getName()))
 				|| (msg.getSender() == null && gameNames.contains(msg.getName()))) {
-			// validate chess move
-			System.out.print("Valid user :)");
-
 			Matcher m = movePattern.matcher(msg.getMessage().trim());
 			if (m.find() == false) {
-				System.out.println("Invalid move :(");
+				queueOverheadText(String.format("Invalid move %s", ChessEmotes.ThreeHead.toHTMLString(modIconsStart)),
+						6000, true);
 				return;
 			}
-			System.out.println("Valid move :)");
-			String moveFrom = m.group(1);
-			String moveTo = m.group(2);
+
+			String moveFrom = m.group(1).toUpperCase();
+			String moveTo = m.group(2).toUpperCase();
+			if(chessHandler.tryMove(moveFrom, moveTo)) {
+				queueOverheadText(String.format("%s%s", moveFrom, moveTo), 6000, true);
+			}
 		}
 	}
 

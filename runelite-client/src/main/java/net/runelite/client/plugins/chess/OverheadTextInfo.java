@@ -1,6 +1,7 @@
 package net.runelite.client.plugins.chess;
 
 import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.locks.ReentrantLock;
 
 import lombok.AccessLevel;
@@ -24,6 +25,7 @@ public class OverheadTextInfo {
 	@Getter(AccessLevel.PUBLIC)
 	@Setter(AccessLevel.PRIVATE)
 	private volatile boolean started;
+	private TimerTask currentTask;
 
 	public OverheadTextInfo(String overheadText, long displayTime) {
 		this.overheadText = overheadText;
@@ -36,10 +38,19 @@ public class OverheadTextInfo {
 		setStarted(true);
 		try {
 			lock.lock();
-			timer.schedule(Utils.WrapTimerTask(() -> setFinished(true)), displayTime);
+			timer.schedule(currentTask = Utils.WrapTimerTask(() -> setFinished(true)), displayTime);
 		} finally {
 			lock.unlock();
 		}
 
+	}
+
+	public void reset() {
+		if(currentTask != null) {
+			currentTask.cancel();
+			currentTask = null;
+			setFinished(false);
+			setStarted(false);
+		}
 	}
 }

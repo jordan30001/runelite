@@ -21,15 +21,16 @@ public class ChessHandler {
 		Piece piece = Piece.valueOf(pieceType.toUpperCase().replaceFirst("B ", "BLACK_").replaceFirst("W ", "WHITE_"));
 		board.setPiece(piece, Square.valueOf(Utils.getCharForNumber(x).toUpperCase() + y));
 	}
-	
+
 	public boolean tryMove(String from, String to) {
 		Square mFrom = Square.valueOf(from.toUpperCase());
 		Square mTo = Square.valueOf(to.toUpperCase());
 		Move move = new Move(mFrom, mTo);
-		
-		if(board.isMoveLegal(new Move(mFrom, mTo), true)) {
+
+		if (board.isMoveLegal(new Move(mFrom, mTo), true)) {
 			board.doMove(move, false);
 		}
+		System.err.println(board.toString());
 		return false;
 	}
 
