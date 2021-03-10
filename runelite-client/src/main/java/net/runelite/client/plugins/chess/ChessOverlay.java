@@ -25,9 +25,45 @@
  */
 package net.runelite.client.plugins.chess;
 
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Polygon;
+import java.awt.Rectangle;
+import java.awt.Stroke;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.function.BiFunction;
+
+import javax.annotation.Nullable;
+import javax.inject.Inject;
+
 import com.google.common.base.Strings;
+import com.google.common.collect.Streams;
+
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+import net.runelite.api.Client;
+import net.runelite.api.Model;
+import net.runelite.api.Perspective;
+import net.runelite.api.Player;
 import net.runelite.api.Point;
-import net.runelite.api.*;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.ui.overlay.Overlay;
@@ -35,162 +71,218 @@ import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayUtil;
 
-import javax.annotation.Nullable;
-import javax.inject.Inject;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.util.List;
-import java.util.*;
-import java.util.stream.IntStream;
+public class ChessOverlay extends Overlay {
+	private static final ExecutorService mainThreads = Executors
+			.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
-public class ChessOverlay extends Overlay
-{
-	private final Client					client;
-	public final ChessConfig				config;
-	private final ChessPlugin				plugin;
-	public static Set<String>				chessPieceUsername;
-	public static HashMap<String, String>	usernameToType;
+	private final Client client;
+	public final ChessConfig config;
+	private final ChessPlugin plugin;
+	public static Set<String> chessPieceUsername;
+	public static HashMap<String, String> usernameToType;
+	private ArrayBlockingQueue<Future<Object>> futs = new ArrayBlockingQueue<>(1000);
+	private BufferedImage lastFrame;
+	private Graphics lastFrameGraphics;
+	@Setter(AccessLevel.PUBLIC)
+	private volatile boolean needsUpdate = true;
+	@Getter
+	private Map<Player, PlayerPolygonsTriangles> playerPolygonsTris;
 
 	@Inject
-	public ChessOverlay(Client client, ChessPlugin plugin, ChessConfig config)
-	{
+	public ChessOverlay(Client client, ChessPlugin plugin, ChessConfig config) {
 		super(plugin);
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ABOVE_SCENE);
 		this.client = client;
 		this.config = config;
 		this.plugin = plugin;
+		playerPolygonsTris = new HashMap<>();
 	}
 
 	@Override
-	public Dimension render(Graphics2D graphics)
-	{
+	public Dimension render(Graphics2D graphics) {
+		// render previous frame if the game hasn't requested another gamerender yet
+		if (needsUpdate == false && lastFrame != null) {
+			graphics.drawImage(lastFrame, 0, 0, null);
+			return null;
+		}
+		long start = System.currentTimeMillis();
 		final Collection<ColorTileMarker> points = plugin.getPoints();
-		BufferedImage image = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(), BufferedImage.TYPE_INT_ARGB);
+		BufferedImage image = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(),
+				BufferedImage.TYPE_INT_ARGB);
 		Graphics g = image.getGraphics();
-		if (config.showBackground())
-		{
+		if (config.showBackground()) {
 			g.setColor(config.backgroundColor());
 			g.fillRect(0, 0, image.getWidth(), image.getHeight());
 		}
 
-		for (final ColorTileMarker point : points)
-		{
+		if (lastFrame == null) {
+			lastFrame = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(),
+					BufferedImage.TYPE_INT_ARGB);
+			lastFrameGraphics = lastFrame.getGraphics();
+			renderTiles(g, points);
+		} else {
+			if (lastFrame.getWidth() != image.getWidth() || lastFrame.getHeight() != image.getHeight()) {
+				lastFrame = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(),
+						BufferedImage.TYPE_INT_ARGB);
+				lastFrameGraphics = lastFrame.getGraphics();
+				renderTiles(g, points);
+			} else {
+				if (needsUpdate == false)
+					g.drawImage(lastFrame, 0, 0, lastFrame.getWidth(), lastFrame.getHeight(), null);
+				else {
+					renderTiles(g, points);
+				}
+			}
+		}
+
+		// generate PPTs
+		client.getPlayers().stream().forEach(p -> {
+			if (chessPieceUsername.contains(p.getName()) == false
+					&& p.getName().equals(client.getLocalPlayer().getName()) == false) {
+				getPlayerPolygonsTris().remove(p);
+			} else if (getPlayerPolygonsTris().containsKey(p) == false) {
+				getPlayerPolygonsTris().put(p, new PlayerPolygonsTriangles());
+			}
+		});
+		client.getPlayers().stream().forEach(p -> {
+			PlayerPolygonsTriangles ppt = getPlayerPolygonsTris().getOrDefault(p, null);
+			if (ppt != null) {
+				ppt.grabData(p);
+			}
+		});
+		try {
+			for (Player p : client.getPlayers()) {
+				futs.put(mainThreads.submit(() -> {
+					updatePlayerPolygonsTriangles(p, getPlayerPolygonsTris().getOrDefault(p, null));
+					return null;
+				}));
+			}
+		} catch (InterruptedException e1) {
+			e1.printStackTrace();
+		}
+		needsUpdate = false;
+		try {
+			Future<Object> fut;
+			while ((fut = futs.poll()) != null) {
+				fut.get();
+			}
+		} catch (InterruptedException | ExecutionException e) {
+			e.printStackTrace();
+		}
+
+		int[] dataBuffer = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
+
+		getPlayerPolygonsTris().keySet().parallelStream().forEach(player -> {
+			if (chessPieceUsername.contains(player.getName())
+					|| player.getName().equals(client.getLocalPlayer().getName())) {
+				PlayerPolygonsTriangles ppt = getPlayerPolygonsTris().get(player);
+				Polygon[] polygons = ppt.polygons;
+				Triangle[] triangles = ppt.triangles;
+
+				for (int i = 0; i < polygons.length; i++) {
+					final int ii = i;
+					Triangle t = triangles[i];
+					if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
+						futs.offer(mainThreads.submit(() -> {
+							clearPolygon(dataBuffer, image.getWidth(), image.getHeight(), polygons[ii]);
+							return null;
+						}));
+					}
+				}
+			}
+		});
+
+		try {
+			Future<Object> fut;
+			while ((fut = futs.poll()) != null) {
+				fut.get();
+			}
+		} catch (InterruptedException | ExecutionException e) {
+			e.printStackTrace();
+		}
+
+		lastFrameGraphics.drawImage(image, 0, 0, null);
+		graphics.drawImage(image, 0, 0, null);
+		System.out.println("Elapsed: " + (System.currentTimeMillis() - start));
+		return null;
+	}
+
+	private void updatePlayerPolygonsTriangles(Player player, PlayerPolygonsTriangles ppt) {
+		if (ppt == null)
+			return;
+		Polygon[] polygons = ppt.nextFramePolygons;
+		int polygonHash = Objects.hashCode(polygons);
+		long modelHash = ppt.nextFrameModelHash;
+		if (ppt.polygons == null || ppt.lastFramePolygonsHash != polygonHash) {
+			ppt.polygons = polygons;
+			ppt.lastFramePolygonsHash = polygonHash;
+		}
+		if (ppt.triangles == null || ppt.lastFrameModelHash != modelHash) {
+			ppt.triangles = getTriangles(ppt);
+			ppt.lastFrameModelHash = modelHash;
+		}
+	}
+
+	private void renderTiles(Graphics g, Collection<ColorTileMarker> points) {
+		for (ColorTileMarker point : points) {
 			WorldPoint worldPoint = point.getWorldPoint();
-			if (worldPoint.getPlane() != client.getPlane())
-			{
+			if (worldPoint.getPlane() != client.getPlane()) {
 				continue;
 			}
 
 			Color tileColor = point.getColor();
-			//			if (tileColor == null || !config.rememberTileColors())
-			//			{
-			//				// If this is an old tile which has no color, or rememberTileColors is off, use marker color
-			//				tileColor = config.markerColor();
-			//			}
 
 			drawTile((Graphics2D) g, worldPoint, tileColor, point.getLabel());
 		}
-
-		Polygon[] polygons = client.getLocalPlayer().getPolygons();
-		Triangle[] triangles = getTriangles(client.getLocalPlayer().getModel());
-
-		for (int i = 0; i < polygons.length; i++)
-		{
-			Triangle t = triangles[i];
-			if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6))
-			{
-				clearPolygon(image, polygons[i]);
-			}
-		}
-
-		for (Player player : client.getPlayers())
-		{
-			if (chessPieceUsername.contains(player.getName()))
-			{
-				Polygon[] polygonsFast = player.getPolygons();
-				Triangle[] trianglesFast = getTriangles(player.getModel());
-
-				IntStream.range(0, polygonsFast.length).parallel().forEach(index ->
-				{
-					Triangle t = trianglesFast[index];
-					if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6))
-					{
-						clearPolygon(image, polygonsFast[index]);
-					}
-				});
-
-			}
-		}
-
-		graphics.drawImage(image, 0, 0, null);
-		return null;
 	}
 
-	private void clearPolygon(BufferedImage image, Polygon p)
-	{
-
+	private void clearPolygon(int[] dataBuffer, int width, int height, Polygon p) {
 		Rectangle bounds = p.getBounds();
 
-		for (double y = bounds.getMinY(); y < bounds.getMaxY(); y++)
-		{
-			for (double x = bounds.getMinX(); x < bounds.getMaxX(); x++)
-			{
-				if (p.contains(x, y)
-						&& x >= 0
-						&& x < client.getCanvasWidth()
-						&& y >= 0
-						&& y < client.getCanvasHeight())
-				{
-					image.setRGB((int) x, (int) y, 0x00000000);
+		for (double y = bounds.getMinY(); y < bounds.getMaxY(); y++) {
+			for (double x = bounds.getMinX(); x < bounds.getMaxX(); x++) {
+				if (p.contains(x, y) && x >= 0 && x < client.getCanvasWidth() && y >= 0
+						&& y < client.getCanvasHeight()) {
+					dataBuffer[(int) (x + width * y)] = 0x00000000;
 				}
 			}
 		}
 	}
 
-	private java.util.List<Vertex> getVertices(Model model)
-	{
-		int[] verticesX = model.getVerticesX();
-		int[] verticesY = model.getVerticesY();
-		int[] verticesZ = model.getVerticesZ();
+	private java.util.List<Vertex> getVertices(PlayerPolygonsTriangles ppt) {
+		int[] verticesX = ppt.vertsX;
+		int[] verticesY = ppt.vertsY;
+		int[] verticesZ = ppt.vertsZ;
 
-		int count = model.getVerticesCount();
+		int count = ppt.verticesCount;
 
 		java.util.List<Vertex> vertices = new ArrayList(count);
 
-		for (int i = 0; i < count; ++i)
-		{
-			Vertex v = new Vertex(
-					verticesX[i],
-					verticesY[i],
-					verticesZ[i]);
+		for (int i = 0; i < count; ++i) {
+			Vertex v = new Vertex(verticesX[i], verticesY[i], verticesZ[i]);
 			vertices.add(v);
 		}
 
 		return vertices;
 	}
 
-	private Triangle[] getTriangles(Model model)
-	{
-		int[] trianglesX = model.getTrianglesX();
-		int[] trianglesY = model.getTrianglesY();
-		int[] trianglesZ = model.getTrianglesZ();
+	private Triangle[] getTriangles(PlayerPolygonsTriangles ppt) {
+		int[] trianglesX = ppt.trisX;
+		int[] trianglesY = ppt.trisY;
+		int[] trianglesZ = ppt.trisZ;
 
-		List<Vertex> vertices = getVertices(model);
+		List<Vertex> vertices = getVertices(ppt);
 
-		int count = model.getTrianglesCount();
+		int count = ppt.trianglesCount;
 		Triangle[] triangles = new Triangle[count];
 
-		for (int i = 0; i < count; ++i)
-		{
+		for (int i = 0; i < count; ++i) {
 			int triangleX = trianglesX[i];
 			int triangleY = trianglesY[i];
 			int triangleZ = trianglesZ[i];
 
-			Triangle triangle = new Triangle(
-					vertices.get(triangleX),
-					vertices.get(triangleY),
-					vertices.get(triangleZ));
+			Triangle triangle = new Triangle(vertices.get(triangleX), vertices.get(triangleY), vertices.get(triangleZ));
 			triangles[i] = triangle;
 		}
 
@@ -199,20 +291,20 @@ public class ChessOverlay extends Overlay
 
 	private static final int MAX_DRAW_DISTANCE = 32;
 
-	private void drawTile(Graphics2D graphics, WorldPoint point, Color color, @Nullable String label)
-	{
+	private void drawTile(Graphics2D graphics, WorldPoint point, Color color, @Nullable String label) {
 		WorldPoint playerLocation = client.getLocalPlayer().getWorldLocation();
 
-		if (point.distanceTo(playerLocation) >= MAX_DRAW_DISTANCE)
-		{ return; }
+		if (point.distanceTo(playerLocation) >= MAX_DRAW_DISTANCE) {
+			return;
+		}
 
 		LocalPoint lp = LocalPoint.fromWorld(client, point);
-		if (lp == null)
-		{ return; }
+		if (lp == null) {
+			return;
+		}
 
 		Polygon poly = Perspective.getCanvasTilePoly(client, lp);
-		if (poly != null)
-		{
+		if (poly != null) {
 			graphics.setColor(color);
 			final Stroke originalStroke = graphics.getStroke();
 			final Color originalColor = graphics.getColor();
@@ -221,13 +313,43 @@ public class ChessOverlay extends Overlay
 			graphics.fill(poly);
 		}
 
-		if (!Strings.isNullOrEmpty(label))
-		{
+		if (!Strings.isNullOrEmpty(label)) {
 			Point canvasTextLocation = Perspective.getCanvasTextLocation(client, graphics, lp, label, 0);
-			if (canvasTextLocation != null)
-			{
+			if (canvasTextLocation != null) {
 				OverlayUtil.renderTextLocation(graphics, canvasTextLocation, label, color);
 			}
+		}
+	}
+
+	private static class PlayerPolygonsTriangles {
+		int lastFramePolygonsHash = 0;
+		long lastFrameModelHash = 0;
+		Polygon[] polygons;
+		Triangle[] triangles;
+		Polygon[] nextFramePolygons;
+		Model nextFrameModel;
+		long nextFrameModelHash;
+		public int trianglesCount;
+		public int verticesCount;
+		int[] trisX;
+		int[] trisY;
+		int[] trisZ;
+		int[] vertsX;
+		int[] vertsY;
+		int[] vertsZ;
+
+		public void grabData(Player p) {
+			Model m = p.getModel();
+			trisX = m.getTrianglesX();
+			trisY = m.getTrianglesY();
+			trisZ = m.getTrianglesZ();
+			vertsX = m.getVerticesX();
+			vertsY = m.getVerticesY();
+			vertsZ = m.getVerticesZ();
+			nextFramePolygons = p.getPolygons();
+			nextFrameModelHash = m.getHash();
+			trianglesCount = m.getTrianglesCount();
+			verticesCount = m.getVerticesCount();
 		}
 	}
 }

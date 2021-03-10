@@ -33,11 +33,16 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -63,6 +68,7 @@ import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.BeforeRender;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.events.MenuOptionClicked;
@@ -75,485 +81,542 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.chess.TwitchRedemption.Function;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.Text;
 
 @Slf4j
-@PluginDescriptor(name = "Chess", description = "Chess plugin", tags = {"config", "chess"})
+@PluginDescriptor(name = "Chess", description = "Chess plugin", tags = { "config", "chess" })
 
 public class ChessPlugin extends Plugin {
-    private static final String CONFIG_GROUP = "chessMarker";
-    private static final String MARK = "Mark chessboard";
-    private static final String UNMARK = "Unmark chessboard";
-    private static final String LABEL = "Label tile";
-    private static final String WALK_HERE = "Walk here";
-    private static final String REGION_PREFIX = "region_";
-    private static ChessMarkerPoint SW_Chess_Tile = null;
-    private static Set<String> twitchNames;
-    private static Set<String> gameNames;
-    private static Pattern movePattern = Pattern.compile("^\\s*([a-hA-H][1-8])\\s*([a-hA-H][1-8])\\s*$");
-    @Inject
-    private ChatMessageManager chatMessageManager;
-
-    @Inject
-    private Notifier notifier;
-
-    @Getter
-    private ChessOverlay chessOverlay;
-
-    @Getter(AccessLevel.PACKAGE)
-    private final List<net.runelite.client.plugins.chess.ColorTileMarker> points = new ArrayList<>();
-
-    @Inject
-    public Client client;
-
-    @Inject
-    private ChessConfig config;
-
-    @Inject
-    public ConfigManager configManager;
-
-    @Inject
-    private OverlayManager overlayManager;
-
-    @Inject
-    private ChatboxPanelManager chatboxPanelManager;
-
-    @Inject
-    private ChessOverlay overlay;
-
-    // @Inject
-    // private ChatboxPanelManager chatboxPanelManager;
-
-    @Inject
-    private EventBus eventBus;
-
-    @Inject
-    private Gson gson;
-    private LocalPoint localPoint;
-    private WorldPoint worldPoint;
-    @Getter
-    private TwitchIntegration twitchEventManager;
-    private TwitchEventRunners twitchListeners;
-    public int modIconsStart = -1;
-    private BlockingQueue<OverheadTextInfo> overheadTextQueue;
-    private BlockingQueue<OverheadTextInfo> priorityOverheadTextQueue;
-    @Getter
-    private ChessHandler chessHandler;
-
-    @Override
-    protected void startUp() throws Exception {
-        overheadTextQueue = new ArrayBlockingQueue<>(100);
-        priorityOverheadTextQueue = new ArrayBlockingQueue<>(100);
-        overlayManager.add(overlay);
-        loadPoints();
-        this.config = overlay.config;
-        onConfigChanged(null);
-        loadEmojiIcons();
-        twitchListeners = new TwitchEventRunners(this, overlay);
-        twitchListeners.init();
-    }
-
-    @Override
-    protected void shutDown() throws Exception {
-        overlayManager.remove(overlay);
-        points.clear();
-
-    }
-
-    void savePoints(Collection<ChessMarkerPoint> points) {
-        if (points == null || points.isEmpty()) {
-            configManager.unsetConfiguration(CONFIG_GROUP, REGION_PREFIX);
-            return;
-        }
-
-        String json = gson.toJson(points);
-        configManager.setConfiguration(CONFIG_GROUP, REGION_PREFIX, json);
-    }
-
-    @Provides
-    ChessConfig getConfig(ConfigManager configManager) {
-        return configManager.getConfig(ChessConfig.class);
-    }
-
-    void loadPoints() {
-        points.clear();
-
-        int[] regions = client.getMapRegions();
-
-        if (regions == null) {
-            return;
-        }
-
-        for (int regionId : regions) {
-            // load points for region
-            log.debug("Loading points for region {}", regionId);
-            Collection<ChessMarkerPoint> regionPoints = getPointsFromConfig();
-            Collection<net.runelite.client.plugins.chess.ColorTileMarker> colorTileMarkers = translateToColorTileMarker(
-                    regionPoints);
-            points.addAll(colorTileMarkers);
-        }
-    }
-
-    private Collection<ChessMarkerPoint> getPointsFromConfig() {
-        String json = configManager.getConfiguration(CONFIG_GROUP, REGION_PREFIX);
-        if (Strings.isNullOrEmpty(json)) {
-            return Collections.emptyList();
-        }
-
-        // CHECKSTYLE:OFF
-        return gson.fromJson(json, new TypeToken<List<ChessMarkerPoint>>() {
-        }.getType());
-        // CHECKSTYLE:ON
-    }
-
-    private Collection<net.runelite.client.plugins.chess.ColorTileMarker> translateToColorTileMarker(
-            Collection<ChessMarkerPoint> points) {
-        if (points.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        return points.stream()
-                .map(point -> new net.runelite.client.plugins.chess.ColorTileMarker(WorldPoint
-                        .fromRegion(point.getRegionId(), point.getRegionX(), point.getRegionY(), point.getZ()),
-                        point.getColor(), point.getLabel()))
-                .flatMap(colorTile -> {
-                    final Collection<WorldPoint> localWorldPoints = WorldPoint.toLocalInstance(client,
-                            colorTile.getWorldPoint());
-                    return localWorldPoints.stream().map(wp -> new net.runelite.client.plugins.chess.ColorTileMarker(wp,
-                            colorTile.getColor(), colorTile.getLabel()));
-                }).collect(Collectors.toList());
-    }
-
-    @Subscribe
-    public void onGameStateChanged(GameStateChanged gameStateChanged) {
-        if (gameStateChanged.getGameState() != GameState.LOGGED_IN) {
-            return;
-        }
-
-        // map region has just been updated
-        loadPoints();
-    }
-
-    @Subscribe
-    public void onConfigChanged(@Nullable ConfigChanged event) {
-        String[] splitTwitchNames = config.twitchPlayers().split(",");
-        String[] splitGameNames = config.osrsPlayers().split(",");
-
-        if (twitchNames == null)
-            twitchNames = new HashSet<String>();
-        if (gameNames == null)
-            gameNames = new HashSet<String>();
-
-        twitchNames.clear();
-        gameNames.clear();
-        for (String name : splitTwitchNames) {
-            twitchNames.add(name);
-        }
-        for (String name : splitGameNames) {
-            gameNames.add(name);
-        }
-
-        String[] splitNames = config.chessPieceUsernames().split(",");
-        List<String> allTypes = new ArrayList<>();
-        allTypes.addAll(Arrays.asList(config.chessPieceTypes1().split(",")));
-        allTypes.addAll(Arrays.asList(config.chessPieceTypes2().split(",")));
-        allTypes.addAll(Arrays.asList(config.chessPieceTypes3().split(",")));
-        allTypes.addAll(Arrays.asList(config.chessPieceTypes4().split(",")));
-
-        for (int i = allTypes.size() - 1; i >= 0; i--) {
-            if (Strings.isNullOrEmpty(allTypes.get(i)) || allTypes.get(i).equals("none")) {
-                allTypes.remove(i);
-            }
-        }
-
-        if (ChessOverlay.chessPieceUsername == null)
-            ChessOverlay.chessPieceUsername = new HashSet<>();
-        if (ChessOverlay.usernameToType == null)
-            ChessOverlay.usernameToType = new HashMap<>();
-        ChessOverlay.chessPieceUsername.clear();
-        ChessOverlay.usernameToType.clear();
-        if (allTypes.size() == splitNames.length) {
-            for (int i = 0; i < splitNames.length; i++) {
-                ChessOverlay.chessPieceUsername.add(splitNames[i].trim());
-                ChessOverlay.usernameToType.put(splitNames[i].trim(),
-                        Strings.isNullOrEmpty(allTypes.get(i).trim()) ? null : allTypes.get(i).trim());
-            }
-        }
-
-        // TODO: check if is streamer
-        if (twitchEventManager == null) {
-            twitchEventManager = new TwitchIntegration(config, this, overlay);
-            twitchEventManager.start();
-        }
-
-        if (event != null) {
-            if (event.getKey().equals("whiteTileColor") || event.getKey().equals("blackTileColor")) {
-                LocalPoint localPoint = gson.fromJson(configManager.getConfiguration("chess", "localtile"),
-                        LocalPoint.class);
-                markTile(localPoint, false, false, true);
-            }
-        }
-    }
-
-    @Subscribe
-    public void onMenuEntryAdded(MenuEntryAdded event) {
-        final boolean hotKeyPressed = client.isKeyPressed(KeyCode.KC_SHIFT);
-        if (hotKeyPressed && event.getOption().equals(WALK_HERE)) {
-            final Tile selectedSceneTile = client.getSelectedSceneTile();
-
-            if (selectedSceneTile == null) {
-                return;
-            }
-
-            final WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, selectedSceneTile.getLocalLocation());
-            final int regionId = worldPoint.getRegionID();
-            // SW_Chess_Tile = new ChessMarkerPoint(regionId, worldPoint.getRegionX(),
-            // worldPoint.getRegionY(),
-            // client.getPlane(), null, null);
-            final boolean exists = getPointsFromConfig().size() > 0;// .contains(SW_Chess_Tile);
-
-            MenuEntry[] menuEntries = client.getMenuEntries();
-            menuEntries = Arrays.copyOf(menuEntries, menuEntries.length + 1);
-
-            MenuEntry mark = menuEntries[menuEntries.length - 1] = new MenuEntry();
-            mark.setOption(exists ? UNMARK : MARK);
-            mark.setTarget(event.getTarget());
-            mark.setType(MenuAction.RUNELITE.getId());
-
-            client.setMenuEntries(menuEntries);
-        }
-    }
-
-    @Subscribe
-    public void onMenuOptionClicked(MenuOptionClicked event) {
-        if (event.getMenuAction().getId() != MenuAction.RUNELITE.getId()) {
-            return;
-        }
-
-        Tile target = client.getSelectedSceneTile();
-        if (target == null) {
-            return;
-        }
-
-        final String option = event.getMenuOption();
-        if (option.equals(MARK) || option.equals(UNMARK)) {
-            markTile(target.getLocalLocation(), option.equals(MARK), option.equals(UNMARK), false);
-            localPoint = target.getLocalLocation();
-            configManager.setConfiguration("chess", "localtile", gson.toJson(localPoint));
-            worldPoint = WorldPoint.fromLocalInstance(client, localPoint);
-        }
-    }
-
-    @Subscribe
-    public void onBeforeRender(BeforeRender event) {
-        if (client.getLocalPlayer() == null)
-            return;
-
-        OverheadTextInfo priorityInfo = priorityOverheadTextQueue.peek();
-        OverheadTextInfo overheadInfo = overheadTextQueue.peek();
-        if (priorityInfo != null) {
-            if (overheadInfo != null) {
-                overheadInfo.reset();
-            }
-
-            if (priorityInfo.isStarted()) {
-                if (priorityInfo.isFinished()) {
-                    priorityOverheadTextQueue.poll();
-                    client.getPlayers().forEach(p -> p.setOverheadText(""));
-                    client.getLocalPlayer().setOverheadText("");
-                }
-            } else {
-                priorityInfo.startCountdown();
-                client.getPlayers().forEach(p -> p.setOverheadText(priorityInfo.getOverheadText()));
-                client.getLocalPlayer().setOverheadText(priorityInfo.getOverheadText());
-            }
-            return;
-        }
-
-        if (overheadInfo == null) return;
-        if (overheadInfo.isStarted()) {
-            if (overheadInfo.isFinished()) {
-                overheadTextQueue.poll();
-                client.getPlayers().forEach(p -> p.setOverheadText(""));
-                client.getLocalPlayer().setOverheadText("");
-            }
-        } else {
-            overheadInfo.startCountdown();
-            client.getPlayers().forEach(p -> p.setOverheadText(overheadInfo.getOverheadText()));
-            client.getLocalPlayer().setOverheadText(overheadInfo.getOverheadText());
-        }
-    }
-
-    public void queueOverheadText(String text, long timeToDisplay, boolean priority) {
-        if (priority)
-            priorityOverheadTextQueue.offer(new OverheadTextInfo(text, timeToDisplay));
-        else
-            overheadTextQueue.offer(new OverheadTextInfo(text, timeToDisplay));
-    }
-
-    private void markTile(LocalPoint localPoint, boolean doMark, boolean doUnmark, boolean updateVisuals) {
-        if (localPoint == null) {
-            return;
-        }
-
-        WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, localPoint);
-
-        int regionId = worldPoint.getRegionID();
-
-        List<ChessMarkerPoint> chessMarkerPoints = new ArrayList<>(getPointsFromConfig());
-        if (updateVisuals || doUnmark)
-            chessMarkerPoints.clear();
-
-        List<ChessMarkerPoint> chessTiles = new ArrayList<>();
-
-        if (doUnmark == false) {
-            if (updateVisuals == false) {
-                chessHandler = new ChessHandler(this, overlay, new Board());
-            }
-            for (int y = 0; y < 10; y++) {// letters
-                for (int x = 0; x < 10; x++) {// numbers
-                    chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x,
-                            worldPoint.getRegionY() + y, client.getPlane(), WhatColor(x, y), WhatLabel(x, y)));
-
-                    if (updateVisuals == false) {
-                        if ((x >= 1 || x <= 9) && (y >= 1 && y <= 9)) {
-                            List<Player> players = Stream
-                                    .concat(Stream.of(client.getLocalPlayer()), client.getPlayers().stream())
-                                    .filter(p -> ChessOverlay.chessPieceUsername.contains(p.getName()))
-                                    .collect(Collectors.toCollection(ArrayList::new));
-                            for (int i = 0; i < players.size(); i++) {
-                                Player player = players.get(i);
-                                WorldPoint playerPoint = player.getWorldLocation();
-                                if (playerPoint.getX() == worldPoint.getX() + x
-                                        && playerPoint.getY() == worldPoint.getY() + y) {
-                                    String pieceType = ChessOverlay.usernameToType.getOrDefault(player.getName(),
-                                            null);
-                                    if (pieceType == null)
-                                        continue;
-                                    player.setOverheadText(pieceType);
-                                    // notify chess engine of this piece
-                                    chessHandler.initPiece(x, y, pieceType);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        for (ChessMarkerPoint element : chessTiles) {
-            if (chessMarkerPoints.contains(element)) {
-                chessMarkerPoints.remove(element);
-            } else {
-                chessMarkerPoints.add(element);
-            }
-        }
-
-        savePoints(chessMarkerPoints);
-
-        loadPoints();
-    }
-
-    @Subscribe
-    public void onChatMessage(ChatMessage msg) {
-        switch (msg.getType()) {
-            case PUBLICCHAT:
-            case MODCHAT:
-            case FRIENDSCHAT:
-            case PRIVATECHAT:
-            case PRIVATECHATOUT:
-            case MODPRIVATECHAT:
-                break;
-            default:
-                return;
-        }
-        if (("Twitch".equals(msg.getSender()) && twitchNames.contains(msg.getName()))
-                || (msg.getSender() == null && gameNames.contains(msg.getName()))) {
-
-            String sanitisedInput = Text.removeFormattingTags(msg.getMessage().trim());
-
-            if("checkmoves".equals(sanitisedInput.toLowerCase())){
-                for (Move move : chessHandler.getBoard().legalMoves()) {
-                    System.err.println(move);
-                }
-                return;
-            }
-
-            Matcher m = movePattern.matcher(sanitisedInput);
-
-            if (m.find() == false) {
-                queueOverheadText(String.format("Invalid move %s", ChessEmotes.ThreeHead.toHTMLString(modIconsStart)),
-                        6000, true);
-                return;
-            }
-
-            String moveFrom = m.group(1).toUpperCase();
-            String moveTo = m.group(2).toUpperCase();
-            if (chessHandler.tryMove(moveFrom, moveTo)) {
-                queueOverheadText(String.format("%s%s", moveFrom, moveTo), 6000, true);
-            } else {
-                queueOverheadText(String.format("Invalid move %s", ChessEmotes.ThreeHead.toHTMLString(modIconsStart)),
-                        6000, true);
-            }
-        }
-    }
-
-    private void loadEmojiIcons() {
-        final IndexedSprite[] modIcons = client.getModIcons();
-        if (modIconsStart != -1 || modIcons == null) {
-            return;
-        }
-
-        final ChessEmotes[] emojis = ChessEmotes.values();
-        final IndexedSprite[] newModIcons = Arrays.copyOf(modIcons, modIcons.length + emojis.length);
-        modIconsStart = modIcons.length;
-
-        for (int i = 0; i < emojis.length; i++) {
-            final ChessEmotes emoji = emojis[i];
-
-            try {
-                final BufferedImage image = emoji.loadImage();
-                final IndexedSprite sprite = ImageUtil.getImageIndexedSprite(image, client);
-                newModIcons[modIconsStart + i] = sprite;
-            } catch (Exception ex) {
-                log.warn("Failed to load the sprite for emoji " + emoji, ex);
-            }
-        }
-
-        log.debug("Adding emoji icons");
-        client.setModIcons(newModIcons);
-
-    }
-
-    public Color WhatColor(int x, int y) {
-        if (x == 0 || x == 9)
-            return new Color(0, 0, 0, 0);
-        else if (y == 0 || y == 9)
-            return new Color(0, 0, 0, 0);
-        else if ((x + y) % 2 == 0) {
-            // chessOverlay
-            return config.blackTileColor();
-        } else {
-            return config.whiteTileColor();
-        }
-    }
-
-    public String WhatLabel(int x, int y) {
-        if (y == 0 || y == 9) {
-            if (x == 9) {
-                return null;
-            }
-            return Utils.getCharForNumber(x);
-        }
-        if (x == 0 || x == 9) {
-            if (y == 9) {
-                return null;
-            }
-            return Integer.toString(y);
-        }
-        return null;
-    }
+	private static final String CONFIG_GROUP = "chessMarker";
+	private static final String MARK = "Mark chessboard";
+	private static final String UNMARK = "Unmark chessboard";
+	private static final String LABEL = "Label tile";
+	private static final String WALK_HERE = "Walk here";
+	private static final String REGION_PREFIX = "region_";
+	private static ChessMarkerPoint SW_Chess_Tile = null;
+	private static Set<String> twitchNames;
+	private static Set<String> gameNames;
+	private static Pattern movePattern = Pattern.compile("^\\s*move ([a-hA-H][1-8])\\s*([a-hA-H][1-8])\\s*$");
+	@Inject
+	private ChatMessageManager chatMessageManager;
+
+	@Inject
+	private Notifier notifier;
+
+	@Getter
+	private ChessOverlay chessOverlay;
+
+	@Getter(AccessLevel.PACKAGE)
+	private final List<net.runelite.client.plugins.chess.ColorTileMarker> points = new ArrayList<>();
+
+	@Inject
+	public Client client;
+
+	@Inject
+	private ChessConfig config;
+
+	@Inject
+	public ConfigManager configManager;
+
+	@Inject
+	private OverlayManager overlayManager;
+
+	@Inject
+	private ChatboxPanelManager chatboxPanelManager;
+
+	@Inject
+	private ChessOverlay overlay;
+
+	// @Inject
+	// private ChatboxPanelManager chatboxPanelManager;
+
+	@Inject
+	private EventBus eventBus;
+
+	@Inject
+	private Gson gson;
+	private LocalPoint localPoint;
+	private WorldPoint worldPoint;
+	@Getter
+	private TwitchIntegration twitchEventManager;
+	private TwitchEventRunners twitchListeners;
+	public int modIconsStart = -1;
+	private BlockingQueue<OverheadTextInfo> overheadTextQueue;
+	private BlockingQueue<OverheadTextInfo> priorityOverheadTextQueue;
+	private Map<TwitchRedemption, BlockingQueue<TwitchRedemptionInfo>> twitchRedemptionQueue;
+
+	@Override
+	protected void startUp() throws Exception {
+		overheadTextQueue = new ArrayBlockingQueue<>(20);
+		priorityOverheadTextQueue = new ArrayBlockingQueue<>(20);
+		twitchRedemptionQueue = new HashMap<>();
+		for (TwitchRedemption redemption : TwitchRedemption.values()) {
+			twitchRedemptionQueue.put(redemption, new ArrayBlockingQueue<>(20));
+		}
+
+		overlayManager.add(overlay);
+		loadPoints();
+		this.config = overlay.config;
+
+		onConfigChanged(null);
+		try {
+			loadEmojiIcons();
+		} catch (Exception e) {
+			// probably not on blades pc
+		}
+		try {
+			twitchListeners = new TwitchEventRunners(this, overlay);
+			twitchListeners.init();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	protected void shutDown() throws Exception {
+		overlayManager.remove(overlay);
+		points.clear();
+
+	}
+
+	void savePoints(Collection<ChessMarkerPoint> points) {
+		if (points == null || points.isEmpty()) {
+			configManager.unsetConfiguration(CONFIG_GROUP, REGION_PREFIX);
+			return;
+		}
+
+		String json = gson.toJson(points);
+		configManager.setConfiguration(CONFIG_GROUP, REGION_PREFIX, json);
+	}
+
+	@Provides
+	ChessConfig getConfig(ConfigManager configManager) {
+		return configManager.getConfig(ChessConfig.class);
+	}
+
+	void loadPoints() {
+		points.clear();
+
+		int[] regions = client.getMapRegions();
+
+		if (regions == null) {
+			return;
+		}
+
+		for (int regionId : regions) {
+			// load points for region
+			log.debug("Loading points for region {}", regionId);
+			Collection<ChessMarkerPoint> regionPoints = getPointsFromConfig();
+			Collection<net.runelite.client.plugins.chess.ColorTileMarker> colorTileMarkers = translateToColorTileMarker(
+					regionPoints);
+			points.addAll(colorTileMarkers);
+		}
+	}
+
+	private Collection<ChessMarkerPoint> getPointsFromConfig() {
+		String json = configManager.getConfiguration(CONFIG_GROUP, REGION_PREFIX);
+		if (Strings.isNullOrEmpty(json)) {
+			return Collections.emptyList();
+		}
+
+		// CHECKSTYLE:OFF
+		return gson.fromJson(json, new TypeToken<List<ChessMarkerPoint>>() {
+		}.getType());
+		// CHECKSTYLE:ON
+	}
+
+	private Collection<net.runelite.client.plugins.chess.ColorTileMarker> translateToColorTileMarker(
+			Collection<ChessMarkerPoint> points) {
+		if (points.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		return points.stream()
+				.map(point -> new net.runelite.client.plugins.chess.ColorTileMarker(WorldPoint
+						.fromRegion(point.getRegionId(), point.getRegionX(), point.getRegionY(), point.getZ()),
+						point.getColor(), point.getLabel()))
+				.flatMap(colorTile -> {
+					final Collection<WorldPoint> localWorldPoints = WorldPoint.toLocalInstance(client,
+							colorTile.getWorldPoint());
+					return localWorldPoints.stream().map(wp -> new net.runelite.client.plugins.chess.ColorTileMarker(wp,
+							colorTile.getColor(), colorTile.getLabel()));
+				}).collect(Collectors.toList());
+	}
+
+	@Subscribe
+	public void onGameStateChanged(GameStateChanged gameStateChanged) {
+		if (gameStateChanged.getGameState() != GameState.LOGGED_IN) {
+			return;
+		}
+
+		// map region has just been updated
+		loadPoints();
+	}
+
+	@Subscribe
+	public void onConfigChanged(@Nullable ConfigChanged event) {
+		String[] splitTwitchNames = config.twitchPlayers().split(",");
+		String[] splitGameNames = config.osrsPlayers().split(",");
+
+		if (twitchNames == null)
+			twitchNames = new HashSet<String>();
+		if (gameNames == null)
+			gameNames = new HashSet<String>();
+
+		twitchNames.clear();
+		gameNames.clear();
+		for (String name : splitTwitchNames) {
+			twitchNames.add(name);
+		}
+		for (String name : splitGameNames) {
+			gameNames.add(name);
+		}
+
+		String[] splitNames = config.chessPieceUsernames().split(",");
+		List<String> allTypes = new ArrayList<>();
+		allTypes.addAll(Arrays.asList(config.chessPieceTypes1().split(",")));
+		allTypes.addAll(Arrays.asList(config.chessPieceTypes2().split(",")));
+		allTypes.addAll(Arrays.asList(config.chessPieceTypes3().split(",")));
+		allTypes.addAll(Arrays.asList(config.chessPieceTypes4().split(",")));
+
+		for (int i = allTypes.size() - 1; i >= 0; i--) {
+			if (Strings.isNullOrEmpty(allTypes.get(i)) || allTypes.get(i).equals("none")) {
+				allTypes.remove(i);
+			}
+		}
+
+		if (ChessOverlay.chessPieceUsername == null)
+			ChessOverlay.chessPieceUsername = new HashSet<>();
+		if (ChessOverlay.usernameToType == null)
+			ChessOverlay.usernameToType = new HashMap<>();
+		ChessOverlay.chessPieceUsername.clear();
+		ChessOverlay.usernameToType.clear();
+		if (allTypes.size() == splitNames.length) {
+			for (int i = 0; i < splitNames.length; i++) {
+				ChessOverlay.chessPieceUsername.add(splitNames[i].trim());
+				ChessOverlay.usernameToType.put(splitNames[i].trim(),
+						Strings.isNullOrEmpty(allTypes.get(i).trim()) ? null : allTypes.get(i).trim());
+			}
+		}
+
+		// TODO: check if is streamer
+		if (twitchEventManager == null) {
+			try {
+				twitchEventManager = new TwitchIntegration(config, this, overlay);
+				twitchEventManager.start();
+			} catch (Exception e) {
+				e.printStackTrace();
+				twitchEventManager = null;
+			}
+		}
+
+		if (event != null) {
+			if (event.getKey().equals("whiteTileColor") || event.getKey().equals("blackTileColor")) {
+				LocalPoint localPoint = gson.fromJson(configManager.getConfiguration("chess", "localtile"),
+						LocalPoint.class);
+				markTile(localPoint, false, false, true);
+			}
+		}
+	}
+
+	@Subscribe
+	public void onMenuEntryAdded(MenuEntryAdded event) {
+		final boolean hotKeyPressed = client.isKeyPressed(KeyCode.KC_SHIFT);
+		if (hotKeyPressed && event.getOption().equals(WALK_HERE)) {
+			final Tile selectedSceneTile = client.getSelectedSceneTile();
+
+			if (selectedSceneTile == null) {
+				return;
+			}
+
+			final WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, selectedSceneTile.getLocalLocation());
+			final int regionId = worldPoint.getRegionID();
+			// SW_Chess_Tile = new ChessMarkerPoint(regionId, worldPoint.getRegionX(),
+			// worldPoint.getRegionY(),
+			// client.getPlane(), null, null);
+			final boolean exists = getPointsFromConfig().size() > 0;// .contains(SW_Chess_Tile);
+
+			MenuEntry[] menuEntries = client.getMenuEntries();
+			menuEntries = Arrays.copyOf(menuEntries, menuEntries.length + 1);
+
+			MenuEntry mark = menuEntries[menuEntries.length - 1] = new MenuEntry();
+			mark.setOption(exists ? UNMARK : MARK);
+			mark.setTarget(event.getTarget());
+			mark.setType(MenuAction.RUNELITE.getId());
+
+			client.setMenuEntries(menuEntries);
+		}
+	}
+
+	@Subscribe
+	public void onMenuOptionClicked(MenuOptionClicked event) {
+		if (event.getMenuAction().getId() != MenuAction.RUNELITE.getId()) {
+			return;
+		}
+
+		Tile target = client.getSelectedSceneTile();
+		if (target == null) {
+			return;
+		}
+
+		final String option = event.getMenuOption();
+		if (option.equals(MARK) || option.equals(UNMARK)) {
+			markTile(target.getLocalLocation(), option.equals(MARK), option.equals(UNMARK), false);
+			localPoint = target.getLocalLocation();
+			configManager.setConfiguration("chess", "localtile", gson.toJson(localPoint));
+			worldPoint = WorldPoint.fromLocalInstance(client, localPoint);
+		}
+	}
+
+	@Subscribe
+	public void onBeforeRender(BeforeRender event) {
+		if (client.getLocalPlayer() == null)
+			return;
+		overlay.setNeedsUpdate(true);
+		// priority overhead text queue
+
+		OverheadTextInfo priorityInfo = priorityOverheadTextQueue.peek();
+		OverheadTextInfo overheadInfo = overheadTextQueue.peek();
+		if (priorityInfo != null) {
+			if (overheadInfo != null) {
+				overheadInfo.reset();
+			}
+
+			if (priorityInfo.isStarted()) {
+				if (priorityInfo.isFinished()) {
+					priorityOverheadTextQueue.poll();
+					client.getPlayers().forEach(p -> p.setOverheadText(""));
+					client.getLocalPlayer().setOverheadText("");
+				}
+			} else {
+				priorityInfo.startCountdown();
+				client.getPlayers().forEach(p -> p.setOverheadText(priorityInfo.getOverheadText()));
+				client.getLocalPlayer().setOverheadText(priorityInfo.getOverheadText());
+			}
+		}
+
+		// overhead text queue
+
+		if (overheadInfo != null) {
+			if (overheadInfo.isStarted()) {
+				if (overheadInfo.isFinished()) {
+					overheadTextQueue.poll();
+					client.getPlayers().forEach(p -> p.setOverheadText(""));
+					client.getLocalPlayer().setOverheadText("");
+				}
+			} else {
+				overheadInfo.startCountdown();
+				client.getPlayers().forEach(p -> p.setOverheadText(overheadInfo.getOverheadText()));
+				client.getLocalPlayer().setOverheadText(overheadInfo.getOverheadText());
+			}
+		}
+
+		// twitch redemption
+
+		Iterator<Entry<TwitchRedemption, BlockingQueue<TwitchRedemptionInfo>>> it = twitchRedemptionQueue.entrySet()
+				.iterator();
+
+		while (it.hasNext()) {
+			Entry<TwitchRedemption, BlockingQueue<TwitchRedemptionInfo>> e = it.next();
+			TwitchRedemption redemption = e.getKey();
+			BlockingQueue<TwitchRedemptionInfo> queue = e.getValue();
+			TwitchRedemptionInfo info = queue.peek();
+			if (info == null)
+				continue;
+
+			if (info.isStarted() == false) {
+				info.startCountdown(redemption.repeatedExecutionDelay);
+				break;
+			} else {
+				if (info.isCurrentExecutionFinished()) {
+					if (info.isFinished()) {
+						queue.poll();
+						break;
+					} else if (info.getCallback().apply(info.getCurrentCallCount())) {
+						info.startCountdown(redemption.endingDelay);
+						break;
+					} else {
+						info.resetForNextExecution();
+						break;
+					}
+				}
+			}
+
+		}
+
+	}
+
+	public void queueOverheadText(String text, long timeToDisplay, boolean priority) {
+		if (priority)
+			priorityOverheadTextQueue.offer(new OverheadTextInfo(text, timeToDisplay));
+		else
+			overheadTextQueue.offer(new OverheadTextInfo(text, timeToDisplay));
+	}
+
+	public void queueTwitchRedemption(TwitchRedemption redemption,
+			java.util.function.Function<Integer, Boolean> callback) {
+		twitchRedemptionQueue.get(redemption).offer(new TwitchRedemptionInfo(callback));
+	}
+
+	private void markTile(LocalPoint localPoint, boolean doMark, boolean doUnmark, boolean updateVisuals) {
+		if (localPoint == null) {
+			return;
+		}
+
+		WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, localPoint);
+
+		int regionId = worldPoint.getRegionID();
+
+		List<ChessMarkerPoint> chessMarkerPoints = new ArrayList<>(getPointsFromConfig());
+		if (updateVisuals || doUnmark)
+			chessMarkerPoints.clear();
+
+		List<ChessMarkerPoint> chessTiles = new ArrayList<>();
+
+		if (doUnmark == false) {
+			for (int y = 0; y < 10; y++) {// letters
+				for (int x = 0; x < 10; x++) {// numbers
+					chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x,
+							worldPoint.getRegionY() + y, client.getPlane(), WhatColor(x, y), WhatLabel(x, y)));
+
+					if (updateVisuals == false) {
+						if ((x >= 1 || x <= 9) && (y >= 1 && y <= 9)) {
+							List<Player> players = Stream
+									.concat(Stream.of(client.getLocalPlayer()), client.getPlayers().stream())
+									.filter(p -> ChessOverlay.chessPieceUsername.contains(p.getName()))
+									.collect(Collectors.toCollection(ArrayList::new));
+							for (int i = 0; i < players.size(); i++) {
+								Player player = players.get(i);
+								WorldPoint playerPoint = player.getWorldLocation();
+								if (playerPoint.getX() == worldPoint.getX() + x
+										&& playerPoint.getY() == worldPoint.getY() + y) {
+									String pieceType = ChessOverlay.usernameToType.getOrDefault(player.getName(), null);
+									if (pieceType == null)
+										continue;
+									player.setOverheadText(pieceType);
+									// notify chess engine of this piece
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		for (ChessMarkerPoint element : chessTiles) {
+			if (chessMarkerPoints.contains(element)) {
+				chessMarkerPoints.remove(element);
+			} else {
+				chessMarkerPoints.add(element);
+			}
+		}
+
+		savePoints(chessMarkerPoints);
+
+		loadPoints();
+	}
+
+	@Subscribe
+	public void onChatMessage(ChatMessage msg) {
+		switch (msg.getType()) {
+		case PUBLICCHAT:
+		case MODCHAT:
+		case FRIENDSCHAT:
+		case PRIVATECHAT:
+		case PRIVATECHATOUT:
+		case MODPRIVATECHAT:
+			break;
+		default:
+			return;
+		}
+		if (("Twitch".equals(msg.getSender()) && twitchNames.contains(msg.getName().toLowerCase()))
+				|| (msg.getSender() == null && gameNames.contains(msg.getName().toLowerCase()))) {
+
+			String sanitisedInput = Text.removeFormattingTags(msg.getMessage().trim());
+
+			if ("catJam".equals(sanitisedInput)) {
+				queueTwitchRedemption(TwitchRedemption.DiscoChessboard, (executionCount) -> {
+					return ((Function) TwitchRedemption.DiscoChessboard.function).accept(executionCount, this);
+				});
+				return;
+			}
+
+			Matcher m = movePattern.matcher(sanitisedInput);
+
+			if (m.find() == false && sanitisedInput.length() == 4) {
+				queueOverheadText(String.format("Invalid move %s", ChessEmotes.ThreeHead.toHTMLString(modIconsStart)),
+						6000, true);
+				return;
+			}
+
+			String moveFrom = m.group(1).toUpperCase();
+			String moveTo = m.group(2).toUpperCase();
+//			if (chessHandler.tryMove(moveFrom, moveTo)) {
+//				queueOverheadText(String.format("%s%s", moveFrom, moveTo), 6000, true);
+//			} else {
+//				queueOverheadText(String.format("Invalid move %s", ChessEmotes.ThreeHead.toHTMLString(modIconsStart)),
+//						6000, true);
+//			}
+		}
+	}
+
+	private void loadEmojiIcons() {
+		final IndexedSprite[] modIcons = client.getModIcons();
+		if (modIconsStart != -1 || modIcons == null) {
+			return;
+		}
+
+		final ChessEmotes[] emojis = ChessEmotes.values();
+		final IndexedSprite[] newModIcons = Arrays.copyOf(modIcons, modIcons.length + emojis.length);
+		modIconsStart = modIcons.length;
+
+		for (int i = 0; i < emojis.length; i++) {
+			final ChessEmotes emoji = emojis[i];
+
+			try {
+				final BufferedImage image = emoji.loadImage();
+				final IndexedSprite sprite = ImageUtil.getImageIndexedSprite(image, client);
+				newModIcons[modIconsStart + i] = sprite;
+			} catch (Exception ex) {
+				// log.warn("Failed to load the sprite for emoji " + emoji, ex);
+			}
+		}
+
+		log.debug("Adding emoji icons");
+		client.setModIcons(newModIcons);
+
+	}
+
+	public Color WhatColor(int x, int y) {
+		if (x == 0 || x == 9)
+			return new Color(0, 0, 0, 0);
+		else if (y == 0 || y == 9)
+			return new Color(0, 0, 0, 0);
+		else if ((x + y) % 2 == 0) {
+			// chessOverlay
+			return config.blackTileColor();
+		} else {
+			return config.whiteTileColor();
+		}
+	}
+
+	public String WhatLabel(int x, int y) {
+		if (y == 0 || y == 9) {
+			if (x == 9) {
+				return null;
+			}
+			return Utils.getCharForNumber(x);
+		}
+		if (x == 0 || x == 9) {
+			if (y == 9) {
+				return null;
+			}
+			return Integer.toString(y);
+		}
+		return null;
+	}
 }

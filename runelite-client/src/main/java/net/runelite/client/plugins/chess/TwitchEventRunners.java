@@ -1,10 +1,5 @@
 package net.runelite.client.plugins.chess;
 
-import java.awt.Color;
-import java.util.Timer;
-import java.util.TimerTask;
-
-import com.github.twitch4j.chat.events.roomstate.FollowersOnlyEvent;
 import com.github.twitch4j.pubsub.domain.FollowingData;
 import com.github.twitch4j.pubsub.domain.SubscriptionData;
 import com.github.twitch4j.pubsub.events.ChannelBitsEvent;
@@ -20,7 +15,8 @@ import com.github.twitch4j.pubsub.events.HypeTrainLevelUpEvent;
 import com.github.twitch4j.pubsub.events.HypeTrainStartEvent;
 import com.github.twitch4j.pubsub.events.RewardRedeemedEvent;
 
-import net.runelite.api.Player;
+import net.runelite.client.plugins.chess.TwitchRedemption.Function;
+import net.runelite.client.plugins.chess.TwitchRedemption.Function1;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
 
 public class TwitchEventRunners {
@@ -67,20 +63,25 @@ public class TwitchEventRunners {
 		 */
 	}
 
+	@SuppressWarnings("unchecked")
 	public void CheckChessBoardColorChange(RewardRedeemedEvent event) {
 		String eventType = event.getRedemption().getReward().getTitle();
-		Color color = Utils.ColorFromString(event.getRedemption().getUserInput());
-
-		if (color == null) {
-			plugin.queueOverheadText(String.format("Beep Boop Invalid Color: %s", ChessEmotes.SadKek.toHTMLString(plugin.modIconsStart),
-					ChessEmotes.SadKek.toHTMLString(plugin.modIconsStart)), 6000, false);
+		TwitchRedemption redemption = TwitchRedemption.getFromName(eventType);
+		
+		if(redemption == null) {
 			return;
 		}
-		if ("Change Black Chessboard Tiles".equals(eventType)) {
-			plugin.configManager.setConfiguration("chess", "blackTileColor", color.getRGB());
-		}
-		if ("Change White Chessboard Tiles".equals(eventType)) {
-			plugin.configManager.setConfiguration("chess", "whiteTileColor", color.getRGB());
+		
+		switch(redemption) {
+		case ChangeBlackBoardColor:
+		case ChangeWhiteBoardColor:
+			((Function1<String>) redemption.function).accept(0, plugin, event.getRedemption().getUserInput());
+			break;
+		case DiscoChessboard:
+			((Function) redemption.function).accept(0, plugin);
+		default:
+			break;
+		
 		}
 	}
 
