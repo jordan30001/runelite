@@ -68,6 +68,7 @@ import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.BeforeRender;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.events.MenuOptionClicked;
@@ -99,7 +100,7 @@ public class ChessPlugin extends Plugin {
 	private static ChessMarkerPoint SW_Chess_Tile = null;
 	private static Set<String> twitchNames;
 	private static Set<String> gameNames;
-	private static Pattern movePattern = Pattern.compile("^\\s*([a-hA-H][1-8])\\s*([a-hA-H][1-8])\\s*$");
+	private static Pattern movePattern = Pattern.compile("^\\s*move ([a-hA-H][1-8])\\s*([a-hA-H][1-8])\\s*$");
 	@Inject
 	private ChatMessageManager chatMessageManager;
 
@@ -373,10 +374,9 @@ public class ChessPlugin extends Plugin {
 
 	@Subscribe
 	public void onBeforeRender(BeforeRender event) {
-		overlay.setNeedsUpdate(true);
 		if (client.getLocalPlayer() == null)
 			return;
-
+		overlay.setNeedsUpdate(true);
 		// priority overhead text queue
 
 		OverheadTextInfo priorityInfo = priorityOverheadTextQueue.peek();
@@ -547,7 +547,7 @@ public class ChessPlugin extends Plugin {
 
 			Matcher m = movePattern.matcher(sanitisedInput);
 
-			if (m.find() == false) {
+			if (m.find() == false && sanitisedInput.length() == 4) {
 				queueOverheadText(String.format("Invalid move %s", ChessEmotes.ThreeHead.toHTMLString(modIconsStart)),
 						6000, true);
 				return;

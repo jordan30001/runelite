@@ -35,23 +35,29 @@ import java.awt.Stroke;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.stream.IntStream;
+import java.util.function.BiFunction;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Streams;
 
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.Setter;
 import net.runelite.api.Client;
 import net.runelite.api.Model;
@@ -79,6 +85,8 @@ public class ChessOverlay extends Overlay {
 	private Graphics lastFrameGraphics;
 	@Setter(AccessLevel.PUBLIC)
 	private volatile boolean needsUpdate = true;
+	@Getter
+	private Map<Player, PlayerPolygonsTriangles> playerPolygonsTris;
 
 	@Inject
 	public ChessOverlay(Client client, ChessPlugin plugin, ChessConfig config) {
@@ -88,12 +96,15 @@ public class ChessOverlay extends Overlay {
 		this.client = client;
 		this.config = config;
 		this.plugin = plugin;
+		playerPolygonsTris = new HashMap<>();
 	}
 
 	@Override
 	public Dimension render(Graphics2D graphics) {
-		if(needsUpdate == false && lastFrame != null) {
+		// render previous frame if the game hasn't requested another gamerender yet
+		if (needsUpdate == false && lastFrame != null) {
 			graphics.drawImage(lastFrame, 0, 0, null);
+			return null;
 		}
 		long start = System.currentTimeMillis();
 		final Collection<ColorTileMarker> points = plugin.getPoints();
@@ -110,71 +121,83 @@ public class ChessOverlay extends Overlay {
 					BufferedImage.TYPE_INT_ARGB);
 			lastFrameGraphics = lastFrame.getGraphics();
 			renderTiles(g, points);
-			lastFrameGraphics.drawImage(image, 0, 0, null);
 		} else {
 			if (lastFrame.getWidth() != image.getWidth() || lastFrame.getHeight() != image.getHeight()) {
 				lastFrame = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(),
 						BufferedImage.TYPE_INT_ARGB);
 				lastFrameGraphics = lastFrame.getGraphics();
 				renderTiles(g, points);
-				lastFrameGraphics.drawImage(image, 0, 0, null);
 			} else {
 				if (needsUpdate == false)
 					g.drawImage(lastFrame, 0, 0, lastFrame.getWidth(), lastFrame.getHeight(), null);
 				else {
 					renderTiles(g, points);
-					lastFrame.getGraphics().drawImage(image, 0, 0, null);
 				}
 			}
 		}
+
+		// generate PPTs
+		client.getPlayers().stream().forEach(p -> {
+			if (chessPieceUsername.contains(p.getName()) == false
+					&& p.getName().equals(client.getLocalPlayer().getName()) == false) {
+				getPlayerPolygonsTris().remove(p);
+			} else if (getPlayerPolygonsTris().containsKey(p) == false) {
+				getPlayerPolygonsTris().put(p, new PlayerPolygonsTriangles());
+			}
+		});
+		client.getPlayers().stream().forEach(p -> {
+			PlayerPolygonsTriangles ppt = getPlayerPolygonsTris().getOrDefault(p, null);
+			if (ppt != null) {
+				ppt.grabData(p);
+			}
+		});
+		try {
+			for (Player p : client.getPlayers()) {
+				futs.put(mainThreads.submit(() -> {
+					updatePlayerPolygonsTriangles(p, getPlayerPolygonsTris().getOrDefault(p, null));
+					return null;
+				}));
+			}
+		} catch (InterruptedException e1) {
+			e1.printStackTrace();
+		}
 		needsUpdate = false;
-
-		Future<Object> future = mainThreads.submit(() -> {
-			try {
-				// Polygon[] polygons = client.getLocalPlayer().getPolygons();
-			} catch (ArrayIndexOutOfBoundsException aioobe) {
-				aioobe.printStackTrace();
-			}
-
-			int[] dataBuffer = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
-
-			futs.put(mainThreads.submit(() -> {
-				Polygon[] polygons = client.getLocalPlayer().getPolygons();
-				Triangle[] triangles = getTriangles(client.getLocalPlayer().getModel());
-
-				for (int i = 0; i < polygons.length; i++) {
-					Triangle t = triangles[i];
-					if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
-						clearPolygon(dataBuffer, image.getWidth(), image.getHeight(), polygons[i]);
-					}
-				}
-				return null;
-			}));
-
-			for (Player player : client.getPlayers()) {
-				if (chessPieceUsername.contains(player.getName())) {
-					futs.put(mainThreads.submit(() -> {
-						Polygon[] polygonsFast = player.getPolygons();
-						Triangle[] trianglesFast = getTriangles(player.getModel());
-
-						for (int i = 0; i < polygonsFast.length; i++) {
-							Triangle t = trianglesFast[i];
-							if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
-								clearPolygon(dataBuffer, image.getWidth(), image.getHeight(), polygonsFast[i]);
-							}
-						}
-						return null;
-					}));
-				}
-			}
+		try {
 			Future<Object> fut;
 			while ((fut = futs.poll()) != null) {
 				fut.get();
 			}
-			return null;
+		} catch (InterruptedException | ExecutionException e) {
+			e.printStackTrace();
+		}
+
+		int[] dataBuffer = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
+
+		getPlayerPolygonsTris().keySet().parallelStream().forEach(player -> {
+			if (chessPieceUsername.contains(player.getName())
+					|| player.getName().equals(client.getLocalPlayer().getName())) {
+				PlayerPolygonsTriangles ppt = getPlayerPolygonsTris().get(player);
+				Polygon[] polygons = ppt.polygons;
+				Triangle[] triangles = ppt.triangles;
+
+				for (int i = 0; i < polygons.length; i++) {
+					final int ii = i;
+					Triangle t = triangles[i];
+					if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
+						futs.offer(mainThreads.submit(() -> {
+							clearPolygon(dataBuffer, image.getWidth(), image.getHeight(), polygons[ii]);
+							return null;
+						}));
+					}
+				}
+			}
 		});
+
 		try {
-			future.get();
+			Future<Object> fut;
+			while ((fut = futs.poll()) != null) {
+				fut.get();
+			}
 		} catch (InterruptedException | ExecutionException e) {
 			e.printStackTrace();
 		}
@@ -183,6 +206,22 @@ public class ChessOverlay extends Overlay {
 		graphics.drawImage(image, 0, 0, null);
 		System.out.println("Elapsed: " + (System.currentTimeMillis() - start));
 		return null;
+	}
+
+	private void updatePlayerPolygonsTriangles(Player player, PlayerPolygonsTriangles ppt) {
+		if (ppt == null)
+			return;
+		Polygon[] polygons = ppt.nextFramePolygons;
+		int polygonHash = Objects.hashCode(polygons);
+		long modelHash = ppt.nextFrameModelHash;
+		if (ppt.polygons == null || ppt.lastFramePolygonsHash != polygonHash) {
+			ppt.polygons = polygons;
+			ppt.lastFramePolygonsHash = polygonHash;
+		}
+		if (ppt.triangles == null || ppt.lastFrameModelHash != modelHash) {
+			ppt.triangles = getTriangles(ppt);
+			ppt.lastFrameModelHash = modelHash;
+		}
 	}
 
 	private void renderTiles(Graphics g, Collection<ColorTileMarker> points) {
@@ -211,13 +250,12 @@ public class ChessOverlay extends Overlay {
 		}
 	}
 
+	private java.util.List<Vertex> getVertices(PlayerPolygonsTriangles ppt) {
+		int[] verticesX = ppt.vertsX;
+		int[] verticesY = ppt.vertsY;
+		int[] verticesZ = ppt.vertsZ;
 
-	private java.util.List<Vertex> getVertices(Model model) {
-		int[] verticesX = model.getVerticesX();
-		int[] verticesY = model.getVerticesY();
-		int[] verticesZ = model.getVerticesZ();
-
-		int count = model.getVerticesCount();
+		int count = ppt.verticesCount;
 
 		java.util.List<Vertex> vertices = new ArrayList(count);
 
@@ -229,14 +267,14 @@ public class ChessOverlay extends Overlay {
 		return vertices;
 	}
 
-	private Triangle[] getTriangles(Model model) {
-		int[] trianglesX = model.getTrianglesX();
-		int[] trianglesY = model.getTrianglesY();
-		int[] trianglesZ = model.getTrianglesZ();
+	private Triangle[] getTriangles(PlayerPolygonsTriangles ppt) {
+		int[] trianglesX = ppt.trisX;
+		int[] trianglesY = ppt.trisY;
+		int[] trianglesZ = ppt.trisZ;
 
-		List<Vertex> vertices = getVertices(model);
+		List<Vertex> vertices = getVertices(ppt);
 
-		int count = model.getTrianglesCount();
+		int count = ppt.trianglesCount;
 		Triangle[] triangles = new Triangle[count];
 
 		for (int i = 0; i < count; ++i) {
@@ -280,6 +318,38 @@ public class ChessOverlay extends Overlay {
 			if (canvasTextLocation != null) {
 				OverlayUtil.renderTextLocation(graphics, canvasTextLocation, label, color);
 			}
+		}
+	}
+
+	private static class PlayerPolygonsTriangles {
+		int lastFramePolygonsHash = 0;
+		long lastFrameModelHash = 0;
+		Polygon[] polygons;
+		Triangle[] triangles;
+		Polygon[] nextFramePolygons;
+		Model nextFrameModel;
+		long nextFrameModelHash;
+		public int trianglesCount;
+		public int verticesCount;
+		int[] trisX;
+		int[] trisY;
+		int[] trisZ;
+		int[] vertsX;
+		int[] vertsY;
+		int[] vertsZ;
+
+		public void grabData(Player p) {
+			Model m = p.getModel();
+			trisX = m.getTrianglesX();
+			trisY = m.getTrianglesY();
+			trisZ = m.getTrianglesZ();
+			vertsX = m.getVerticesX();
+			vertsY = m.getVerticesY();
+			vertsZ = m.getVerticesZ();
+			nextFramePolygons = p.getPolygons();
+			nextFrameModelHash = m.getHash();
+			trianglesCount = m.getTrianglesCount();
+			verticesCount = m.getVerticesCount();
 		}
 	}
 }

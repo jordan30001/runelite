@@ -7,6 +7,7 @@ import java.awt.Color;
 import java.util.Arrays;
 
 import net.runelite.api.AnimationID;
+import net.runelite.client.config.ConfigManager;
 
 public enum TwitchRedemption {
 	ChangeBlackBoardColor("Change Black Chessboard Tiles", 0, 6000, (Function1<String>) (i, cp, ui) -> {
@@ -18,21 +19,22 @@ public enum TwitchRedemption {
 			cp.configManager.setConfiguration("chess", "blackTileColor", color.getRGB());
 
 		return true;
-	}), ChangeWhiteBoardColor("Change White Chessboard Tiles", 0, 6000,
-			(Function1<String>) (i, cp, ui) -> {
-				Color color = Utils.ColorFromString(ui);
+	}), ChangeWhiteBoardColor("Change White Chessboard Tiles", 0, 6000, (Function1<String>) (i, cp, ui) -> {
+		Color color = Utils.ColorFromString(ui);
 
-				if (color == null)
-					cp.queueOverheadText(String.format(INVALID_COLOR, ui, SadKek.toHTMLString(cp)), 6000, false);
-				else
-					cp.configManager.setConfiguration("chess", "whiteTileColor", color.getRGB());
-				return true;
-			}),
-	DiscoChessboard("Everybody to the dancefloor", 100, 0, (Function) (i, cp) -> {
+		if (color == null)
+			cp.queueOverheadText(String.format(INVALID_COLOR, ui, SadKek.toHTMLString(cp)), 6000, false);
+		else
+			cp.configManager.setConfiguration("chess", "whiteTileColor", color.getRGB());
+		return true;
+	}), DiscoChessboard("Everybody to the dancefloor", 100, 0, (Function) (i, cp) -> {
 		cp.configManager.setConfiguration("chess", "whiteTileColor", Utils.getRandomColor());
 		cp.configManager.setConfiguration("chess", "blackTileColor", Utils.getRandomColor());
-		//TODO: change animation to dance, doesn't seem like it is undocumented though :(
-		//if(cp.client.getLocalPlayer().getAnimation() == AnimationID.IDLE) cp.client.getLocalPlayer().setAnimation(AnimationID.DIG);
+		// TODO: change animation to dance, doesn't seem like it is undocumented though
+		// :(
+		if (cp.client.getLocalPlayer().getAnimation() == AnimationID.IDLE) {
+			cp.client.getLocalPlayer().setAnimation(AnimationID.DIG);
+		}
 		if (i >= 100)
 			return true;
 		return false;
