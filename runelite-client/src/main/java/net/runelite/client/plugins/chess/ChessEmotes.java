@@ -70,13 +70,18 @@ public enum ChessEmotes {
     }
 
     BufferedImage loadImage() {
-        return ImageUtil.loadImageResource(getClass(), this.name().toLowerCase() + ".png");
+    	return null;
+        //return ImageUtil.loadImageResource(getClass(), this.name().toLowerCase() + ".png");
     }
 
     static ChessEmotes getEmoji(String trigger) {
         return emojiMap.get(trigger);
     }
+    String toHTMLString(ChessPlugin plugin){
+    	return "<img=" + (plugin.modIconsStart + this.ordinal()) + ">";
+    }
+
     String toHTMLString(int startingOrdinal){
-    	return "<img=" + (startingOrdinal + this.ordinal()) + ">";
+        return "<img=" + (startingOrdinal + this.ordinal()) + ">";
     }
 }
