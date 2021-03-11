@@ -106,7 +106,6 @@ public class ChessOverlay extends Overlay {
 			graphics.drawImage(lastFrame, 0, 0, null);
 			return null;
 		}
-		long start = System.currentTimeMillis();
 		final Collection<ColorTileMarker> points = plugin.getPoints();
 		BufferedImage image = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(),
 				BufferedImage.TYPE_INT_ARGB);
@@ -204,7 +203,6 @@ public class ChessOverlay extends Overlay {
 
 		lastFrameGraphics.drawImage(image, 0, 0, null);
 		graphics.drawImage(image, 0, 0, null);
-		System.out.println("Elapsed: " + (System.currentTimeMillis() - start));
 		return null;
 	}
 

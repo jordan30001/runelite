@@ -27,7 +27,7 @@ public enum TwitchRedemption {
 		else
 			cp.configManager.setConfiguration("chess", "whiteTileColor", color.getRGB());
 		return true;
-	}), DiscoChessboard("Everybody to the dancefloor", 100, 0, (Function) (i, cp) -> {
+	}), DiscoChessboard("Everybody to the dancefloor", 500, 0, (Function) (i, cp) -> {
 		cp.configManager.setConfiguration("chess", "whiteTileColor", Utils.getRandomColor());
 		cp.configManager.setConfiguration("chess", "blackTileColor", Utils.getRandomColor());
 		// TODO: change animation to dance, doesn't seem like it is undocumented though
@@ -35,7 +35,7 @@ public enum TwitchRedemption {
 		if (cp.client.getLocalPlayer().getAnimation() == AnimationID.IDLE) {
 			cp.client.getLocalPlayer().setAnimation(AnimationID.DIG);
 		}
-		if (i >= 100)
+		if (i >= 50)
 			return true;
 		return false;
 	});

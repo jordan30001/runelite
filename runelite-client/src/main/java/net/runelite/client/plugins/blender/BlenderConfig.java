@@ -62,4 +62,11 @@ public interface BlenderConfig extends Config {
         return false;
     }
 
+    @ConfigItem(
+            keyName = "getPortNumber",
+            name = "port number",
+            description = "port number",
+            position = 3
+    )
+    default int getPortNumber() {return 6969;};
 }

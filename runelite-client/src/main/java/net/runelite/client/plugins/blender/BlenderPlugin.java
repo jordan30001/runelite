@@ -30,16 +30,12 @@ import net.runelite.client.ui.overlay.OverlayPriority;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
+import java.io.*;
+import java.net.*;
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 import static net.runelite.api.MenuAction.RUNELITE_OVERLAY_CONFIG;
 import static net.runelite.client.ui.overlay.OverlayManager.OPTION_CONFIGURE;
@@ -70,13 +66,74 @@ public class BlenderPlugin extends Plugin {
         return configManager.getConfig(BlenderConfig.class);
     }
 
+    private ServerSocket server;
+    private ExecutorService serverThread;
+    private ArrayBlockingQueue<JsonObject> dataToSend;
+    private Future<Object> serverFuture;
+
+
     @Override
     protected void startUp() throws Exception {
+        server = PortAvailable(config.getPortNumber());
+        if (server == null) return;
+        dataToSend = new ArrayBlockingQueue<>(10);
+        serverThread = Executors.newFixedThreadPool(1);
+        serverFuture = serverThread.submit(runServer());
     }
 
+    public static final ServerSocket PortAvailable(int port) {
+        ServerSocket socket = null;
+        try {
+            socket = new ServerSocket(port);
+            return socket;
+        } catch (IOException ioe) {
+            log.info(String.format("blender port (%d) already in use", port));
+            try {
+                if (socket != null) socket.close();
+            } catch (IOException ioe2) {
+
+            }
+        }
+        return null;
+    }
+
+    public Callable<Object> runServer() {
+        return () -> {
+            while (true) {
+                try (Socket blenderClient = server.accept();) {
+                    JsonObject jsonObj = dataToSend.peek();
+                    if (jsonObj != null) jsonObj = dataToSend.poll();
+                    else {
+                        blenderClient.close();
+                        continue;
+                    }
+                    OutputStream os = blenderClient.getOutputStream();
+                    os.write(jsonObj.toString().getBytes("utf-8"));
+                    if (Thread.currentThread().isInterrupted()) return null;
+                } catch (Throwable t) {
+                    if (t instanceof InterruptedException || Thread.currentThread().isInterrupted()) return null;
+                    else if (t instanceof SocketException) {
+                        t.printStackTrace();
+                        continue;
+                    } else {
+                        t.printStackTrace();
+                        throw t;
+                    }
+                }
+            }
+        };
+    }
 
     @Override
     protected void shutDown() throws Exception {
+
+        if (serverFuture != null) serverFuture.cancel(true);
+        if (serverThread != null) serverThread.shutdownNow();
+        try {
+            if (server != null) server.close();
+        } catch (Exception e) {
+        }
+        if (serverThread != null) serverThread.awaitTermination(5, TimeUnit.SECONDS);
     }
 
     private JsonObject getCamera(JsonObject parent) {
@@ -123,7 +180,11 @@ public class BlenderPlugin extends Plugin {
             getCamera(data);
         }
 
-        es.submit(() -> socketConnect(data.toString()));
+        dataToSend.offer(data);
+        //System.out.println(data);
+
+//        es.submit(() -> socketConnect(data.toString()));
+//        es.submit(() -> socketConnect(data.toString()));
 //        System.out.println("ViewportXOffset == " + client.getViewportXOffset());
 //        System.out.println("CameraX2 == " + client.getCameraX2());
 //        System.out.println("CenterY == " + client.getCenterY());
@@ -139,28 +200,5 @@ public class BlenderPlugin extends Plugin {
 
 
     }
-
-
-    private void socketConnect(String data) {
-        try {
-            String sURL = "http://localhost:8004/?data=" + URLEncoder.encode(data, "utf-8");
-
-            URL url = new URL(sURL);
-            HttpURLConnection con = (HttpURLConnection) url.openConnection();
-            con.setRequestMethod("GET");
-            con.setConnectTimeout(6000);
-            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-
-//            String line;
-//            while ((line = in.readLine()) != null) {
-//                System.out.println(line);
-//            }
-            in.close();
-        } catch (
-                IOException ioe) {
-            ioe.printStackTrace();
-        }
-    }
-
 
 }

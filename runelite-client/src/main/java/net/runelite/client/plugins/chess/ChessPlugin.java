@@ -270,10 +270,10 @@ public class ChessPlugin extends Plugin {
 		twitchNames.clear();
 		gameNames.clear();
 		for (String name : splitTwitchNames) {
-			twitchNames.add(name);
+			twitchNames.add(name.toLowerCase());
 		}
 		for (String name : splitGameNames) {
-			gameNames.add(name);
+			gameNames.add(name.toLowerCase());
 		}
 
 		String[] splitNames = config.chessPieceUsernames().split(",");
