@@ -41,6 +41,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -335,6 +336,13 @@ public class ChessPlugin extends Plugin {
 						LocalPoint.class);
 				markTile(localPoint, false, false, true);
 			}
+		}
+		
+		if(event.getKey().equals("debugMultithreadingThreads")) {
+			overlay.mainThreadPool.shutdown();
+			int threads = config.debugMultithreadingThreads();
+			if(threads == 0) threads = Runtime.getRuntime().availableProcessors();
+			overlay.mainThreadPool = new ForkJoinPool(threads);
 		}
 	}
 

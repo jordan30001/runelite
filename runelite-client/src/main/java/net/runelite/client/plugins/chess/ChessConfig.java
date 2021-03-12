@@ -46,6 +46,14 @@ public interface ChessConfig extends Config {
             closedByDefault = true
     )
     String chessPieceSettings = "Chess Piece Settings";
+    
+    @ConfigSection(
+            name = "Debug Settings",
+            description = "Debug Settings",
+            position = 15,
+            closedByDefault = true
+    )
+    String debugOptionSettings = "Debug Settings";
 
     @ConfigItem(
             keyName = "twitchPlayers",
@@ -222,4 +230,59 @@ public interface ChessConfig extends Config {
             position = 3
     )
     default String clientID() {return "";}
+    
+    @ConfigItem(
+            keyName = "debug",
+            name = "debug",
+            description = "Debug Mode",
+            position = 0,
+            section = debugOptionSettings
+    )
+    default boolean debug() {return false;}
+    
+    @ConfigItem(
+            keyName = "debugUseMultithreading",
+            name = "debugUseMultithreading",
+            description = "Use multithreading render",
+            position = 1,
+            section = debugOptionSettings
+    )
+    default boolean debugUseMultithreading() {return false;}
+    
+    @ConfigItem(
+            keyName = "debugMultithreadingThreads",
+            name = "debugMultithreadingThreads",
+            description = "How many threads to use (0 for auto set)",
+            position = 2,
+            section = debugOptionSettings
+    )
+    default int debugMultithreadingThreads() {return 0;}
+    
+    @ConfigItem(
+            keyName = "debugShowRandomPlayers",
+            name = "debugShowRandomPlayers",
+            description = "Show random players on chessboard",
+            position = 3,
+            section = debugOptionSettings
+    )
+    default boolean debugShowRandomPlayers() {return false;}
+    
+    @ConfigItem(
+            keyName = "debugShowRandomPlayersCount",
+            name = "debugShowRandomPlayersCount",
+            description = "show n players on chessboard",
+            position = 4,
+            section = debugOptionSettings
+    )
+    default int debugShowRandomPlayersCount() {return 10;}
+    
+    @ConfigItem(
+            keyName = "debugShowFrameTimes",
+            name = "debugShowFrameTimes",
+            description = "show the current time taken to render the chessboard (optimaly this should be as low as possible)",
+            position = 5,
+            section = debugOptionSettings
+    )
+    default boolean debugShowFrameTimes() {return false;}
+    
 }
