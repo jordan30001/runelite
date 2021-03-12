@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimerTask;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Consumer;
 
 public class Utils {
 
@@ -135,5 +136,9 @@ public class Utils {
 
 	public static String getCharForNumber(int i) {
 		return i > 0 && i < 27 ? String.valueOf((char) (i + 64)) : null;
+	}
+
+	public static interface Function<R> {
+		R get();
 	}
 }
