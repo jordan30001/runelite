@@ -170,7 +170,7 @@ public class ChessOverlay extends Overlay {
 			getPlayerPolygonsTris().values().stream().forEach(PlayerPolygonsTriangles::grabData);
 			// update PPTs
 
-			if (getConfig().debugUseMultithreadedPPTsUpdater()) {
+			if (getConfig().debugUseMultithreading()) {
 				mainThreadPool.submit(() -> getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> updatePlayerPolygonsTriangles(ppt))).get();
 			} else {
 				getPlayerPolygonsTris().values().stream().forEach(ppt -> updatePlayerPolygonsTriangles(ppt));
