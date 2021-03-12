@@ -37,6 +37,8 @@ public class CameraOverlay extends OverlayPanel
 {
 	private final Client client;
 	private final DevToolsPlugin plugin;
+	public static final int[] SINE = new int[2048]; // sine angles for each of the 2048 units, * 65536 and stored as an int
+	public static final int[] COSINE = new int[2048]; // cosine
 
 	@Inject
 	CameraOverlay(Client client, DevToolsPlugin plugin)
@@ -54,8 +56,29 @@ public class CameraOverlay extends OverlayPanel
 			return null;
 		}
 
+		int cameraPitch = client.getCameraPitch();
+		int cameraYaw = client.getCameraYaw();
+
+		int pitchSin = SINE[cameraPitch];
+		int pitchCos = COSINE[cameraPitch];
+		int yawSin = SINE[cameraYaw];
+		int yawCos = COSINE[cameraYaw];
+
+
+
+
 		panelComponent.getChildren().add(TitleComponent.builder()
 				.text("Camera")
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("ViewXOff")
+				.right("" + client.getViewportYOffset())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("ViewXOff")
+				.right("" + client.getViewportXOffset())
 				.build());
 
 		panelComponent.getChildren().add(LineComponent.builder()
@@ -87,6 +110,80 @@ public class CameraOverlay extends OverlayPanel
 				.left("Scale")
 				.right("" + client.getScale())
 				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("WLoc")
+				.right("" + client.getLocalPlayer().getWorldLocation())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("Orient")
+				.right("" + client.getLocalPlayer().getOrientation())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("CanvP")
+				.right("" + client.getLocalPlayer().getCanvasTilePoly())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("LocL")
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.right("" + client.getLocalPlayer().getLocalLocation())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("PlayX")
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.right("" + client.getLocalPlayer().getLocalLocation().getX())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.right("" + client.getLocalPlayer().getLocalLocation().getSceneX())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("VHeight")
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.right("" + client.getViewportHeight())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("VWidth")
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.right("" + client.getViewportWidth())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("PlayY")
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.right("" + client.getLocalPlayer().getLocalLocation().getY())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.right("" + client.getLocalPlayer().getLocalLocation().getSceneY())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("OcuY")
+				.right("" + client.getOculusOrbFocalPointY())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("OcuX")
+				.right("" + client.getOculusOrbFocalPointX())
+				.build());
+
 
 		return super.render(graphics);
 	}

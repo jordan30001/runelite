@@ -87,6 +87,8 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.Text;
 
+import net.runelite.api.GameState.*;
+
 @Slf4j
 @PluginDescriptor(name = "Chess", description = "Chess plugin", tags = { "config", "chess" })
 
@@ -248,9 +250,22 @@ public class ChessPlugin extends Plugin {
 	}
 
 	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged) {
-		if (gameStateChanged.getGameState() != GameState.LOGGED_IN) {
-			return;
+	public void onGameStateChanged(GameStateChanged event) {
+		switch(event.getGameState()){
+			case UNKNOWN:
+			case STARTING:
+			case LOGIN_SCREEN:
+			case LOGIN_SCREEN_AUTHENTICATOR:
+			case LOGGING_IN:
+			case LOADING:
+			case CONNECTION_LOST:
+			case HOPPING:
+				overlay.getPlayerPolygonsTris().clear();
+				overlay.setNeedsUpdate(true);
+				return;
+			case LOGGED_IN:
+				overlay.setNeedsUpdate(true);
+				break;
 		}
 
 		// map region has just been updated

@@ -189,8 +189,8 @@ public interface ChessConfig extends Config {
     @ConfigItem(
             section = streamerSettings,
             keyName = "OAUthCode",
-            name = "OAUth Code",
-            description = "OAUth Code",
+            name = "OAUth Code (no colon :D)",
+            description = "OAUth Code (no colon :D)",
             secret = true,
             position = 0
     )

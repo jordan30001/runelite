@@ -9,8 +9,10 @@ import com.google.inject.Provides;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.GameState;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.Player;
+import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.kit.KitType;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -36,6 +38,8 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.*;
+
+import static net.runelite.api.GameState.*;
 
 import static net.runelite.api.MenuAction.RUNELITE_OVERLAY_CONFIG;
 import static net.runelite.client.ui.overlay.OverlayManager.OPTION_CONFIGURE;
@@ -70,6 +74,7 @@ public class BlenderPlugin extends Plugin {
     private ExecutorService serverThread;
     private ArrayBlockingQueue<JsonObject> dataToSend;
     private Future<Object> serverFuture;
+    private boolean stop = true;
 
 
     @Override
@@ -156,21 +161,44 @@ public class BlenderPlugin extends Plugin {
         if (p == null) {
             return parent;
         }
-        parent.getAsJsonArray("data").add(playerJSON);
         playerJSON.addProperty("type", "playermodelids");
 
         for (KitType kitType : KitType.values()) {
+            if(p.getPlayerComposition() == null) {
+                return parent;
+            }
             int itemId = p.getPlayerComposition().getEquipmentId(kitType);
             if (itemId != -1) {
                 playerJSON.addProperty(kitType.name(), itemId);
             }
         }
 
+        parent.getAsJsonArray("data").add(playerJSON);
         return parent;
     }
 
     @Subscribe
+    public void onGameStateChanged(GameStateChanged event){
+        switch(event.getGameState()){
+            case UNKNOWN:
+            case STARTING:
+            case LOGIN_SCREEN:
+            case LOGIN_SCREEN_AUTHENTICATOR:
+            case LOGGING_IN:
+            case LOADING:
+            case CONNECTION_LOST:
+            case HOPPING:
+                stop = true;
+                break;
+            case LOGGED_IN:
+                stop = false;
+                break;
+        }
+    }
+
+    @Subscribe
     public void onBeforeRender(BeforeRender event) {
+        if(stop) return;
         JsonObject data = new JsonObject();
         data.add("data", new JsonArray());
         if (config.sendPlayerData()) {
@@ -181,10 +209,10 @@ public class BlenderPlugin extends Plugin {
         }
 
         dataToSend.offer(data);
-        //System.out.println(data);
-
-//        es.submit(() -> socketConnect(data.toString()));
-//        es.submit(() -> socketConnect(data.toString()));
+//        System.out.println("".format("Real Dimensions = %s", client.getViewportHeight()));
+//        System.out.println("".format("Real Dimensions = %s", client.getViewportWidth()));
+//        System.out.println("".format("Real Dimensions = %s", client.getViewportXOffset()));
+//        System.out.println("".format("Real Dimensions = %s", client.getViewportYOffset()));
 //        System.out.println("ViewportXOffset == " + client.getViewportXOffset());
 //        System.out.println("CameraX2 == " + client.getCameraX2());
 //        System.out.println("CenterY == " + client.getCenterY());
