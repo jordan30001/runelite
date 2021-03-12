@@ -338,7 +338,7 @@ public class ChessPlugin extends Plugin {
 			}
 		}
 		
-		if(event.getKey().equals("debugMultithreadingThreads")) {
+		if(event != null && "debugMultithreadingThreads".equalsIgnoreCase(event.getKey())) {
 			overlay.mainThreadPool.shutdown();
 			int threads = config.debugMultithreadingThreads();
 			if(threads == 0) threads = Runtime.getRuntime().availableProcessors();
