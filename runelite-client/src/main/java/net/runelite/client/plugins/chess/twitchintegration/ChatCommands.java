@@ -69,13 +69,12 @@ public class ChatCommands {
 		String messageToSend = null;
 		if (splitInput[0].toLowerCase().equals(TwitchChat.BASE_COMMAND1) || splitInput[0].toLowerCase().equals(TwitchChat.BASE_COMMAND2)) {
 			if (isChannelMessage) {
-				if (splitInput.length == 0) {
+				if (splitInput.length == 1) {
 					if (Collections.disjoint(MOD_PLUS_OWNER_PERMISSIONS, channelMessage.getPermissions()) == false) {
 						messageToSend = String.format(TwitchChat.RESPONSE_MOD_BASE_COMMAND, channelMessage.getUser().getName(), TwitchChat.ALL_USER_COMMANDS, TwitchChat.ALL_MOD_COMMANDS);
 					} else {
 						messageToSend = String.format(TwitchChat.RESPONSE_BASE_COMMAND, channelMessage.getUser().getName(), TwitchChat.ALL_USER_COMMANDS);
 					}
-					return;
 				} else {
 					switch (splitInput[1]) {
 					case TwitchChat.MOD_RESTART_BOARD:

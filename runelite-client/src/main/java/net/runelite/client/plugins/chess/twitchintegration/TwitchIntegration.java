@@ -42,6 +42,7 @@ public class TwitchIntegration {
 	private TwitchHelix twitchHelix;
 
 	private String channelID;
+	private String channelID2;
 	@Inject
 	private ChessConfig config;
 	private ChessOverlay overlay;
@@ -65,22 +66,22 @@ public class TwitchIntegration {
 		try {
 			OAuth2Credential oauth = new OAuth2Credential("twitch", config.OAUthCode());
 			twitchHelix = TwitchHelixBuilder.builder().withClientId(config.clientID()).withClientSecret(config.OAUthCode()).build();
-			UserList list = twitchHelix.getUsers(config.OAUthCode(), null, Arrays.asList(config.channelUsername())).execute();
+			UserList list = twitchHelix.getUsers(config.OAUthCode(), null, Arrays.asList(config.channelUsername(), config.channelName())).execute();
 
-			HystrixCommand<ChannelInformationList> request = twitchHelix.getChannelInformation(config.OAUthCode(), Arrays.asList(list.getUsers().get(0).getId()));
+			List<String> ids = new ArrayList<>();
+			list.getUsers().forEach(user -> ids.add(user.getId()));
+
+			HystrixCommand<ChannelInformationList> request = twitchHelix.getChannelInformation(config.OAUthCode(), ids);
 
 			ChannelInformationList ci = request.execute();
 
 			channelID = ci.getChannels().get(0).getBroadcasterId();
+			if (ci.getChannels().size() == 2)
+				channelID2 = ci.getChannels().get(1).getBroadcasterId();
 
-			twitchClient = TwitchClientBuilder.builder()
-					.withEnablePubSub(true)
-					.withEnableChat(true)
-					.withClientId(config.clientID())
-					.withClientSecret(config.OAUthCode())
-					.setBotOwnerIds(Arrays.asList(channelID))
-					.withChatAccount(oauth)
+			twitchClient = TwitchClientBuilder.builder().withEnablePubSub(true).withEnableChat(true).withClientId(config.clientID()).withClientSecret(config.OAUthCode()).setBotOwnerIds(Arrays.asList(channelID)).withChatAccount(oauth)
 					.build();
+			twitchClient.getChat().joinChannel(config.channelName());
 			twitchClient.getChat().getEventManager().onEvent(ChannelMessageEvent.class, this::DispatchEvents);
 
 			twitchClient.getPubSub().connect();
@@ -91,6 +92,7 @@ public class TwitchIntegration {
 			credentialManager.addCredential("twitch", oauth);
 
 			twitchClient.getPubSub().listenForChannelPointsRedemptionEvents(oauth, channelID);
+			twitchClient.getPubSub().listenForChannelPointsRedemptionEvents(oauth, channelID2);
 
 		} catch (Exception e) {
 			StringWriter sw = new StringWriter();
@@ -116,7 +118,7 @@ public class TwitchIntegration {
 		if (subscribedEvents.contains(eventType))
 			return;
 		subscribedEvents.add(eventType);
-		twitchClient.getEventManager().onEvent(eventType, this::DispatchEvents);
+		twitchClient.getPubSub().getEventManager().onEvent(eventType, this::DispatchEvents);
 	}
 
 	public <E> void RegisterListener(Class<E> eventClass, Consumer<E> callback) {
@@ -142,6 +144,8 @@ public class TwitchIntegration {
 				return;
 
 			callbacks.forEach(c -> ((Consumer<E>) c).accept(event));
+		} catch (Throwable e) {
+			e.printStackTrace();
 		} finally {
 			lock.readLock().unlock();
 		}

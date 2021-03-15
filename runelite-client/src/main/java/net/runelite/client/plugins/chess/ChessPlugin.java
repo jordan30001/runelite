@@ -82,6 +82,7 @@ import net.runelite.client.plugins.chess.data.ChessEmotes;
 import net.runelite.client.plugins.chess.data.ChessMarkerPoint;
 import net.runelite.client.plugins.chess.data.ChessMarkerPointType;
 import net.runelite.client.plugins.chess.data.ColorTileMarker;
+import net.runelite.client.plugins.chess.twitchintegration.ChatCommands;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchEventRunners;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchRedemptionInfo;
@@ -153,6 +154,7 @@ public class ChessPlugin extends Plugin {
 	private Map<Class<TwitchRedemptionEvent>, BlockingQueue<TwitchRedemptionEvent>> twitchRedemptionQueue;
 	@Getter(AccessLevel.PUBLIC)
 	private ChessHandler chessHandler;
+	private ChatCommands chatCommands;
 
 	@Override
 	protected void startUp() throws Exception {
@@ -177,6 +179,7 @@ public class ChessPlugin extends Plugin {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		chatCommands = new ChatCommands(this);
 	}
 
 	@Override
@@ -410,7 +413,7 @@ public class ChessPlugin extends Plugin {
 	public void onBeforeRender(BeforeRender event) {
 		if (client.getLocalPlayer() == null)
 			return;
-		if (config.debugCatJam() && twitchRedemptionQueue.get(ChessboardDisco.class).size() == 0) {
+		if (config.debugCatJam() && (twitchRedemptionQueue.get(ChessboardDisco.class) == null || twitchRedemptionQueue.get(ChessboardDisco.class).size() == 0)) {
 			queueTwitchRedemption(new ChessboardDisco(this));
 		}
 		overlay.setNeedsUpdate(true);
@@ -493,6 +496,11 @@ public class ChessPlugin extends Plugin {
 	}
 
 	public <T extends TwitchRedemptionEvent> void queueTwitchRedemption(T event) {
+		synchronized (twitchRedemptionQueue) {
+			if(twitchRedemptionQueue.containsKey(event.getClass()) == false) {
+				twitchRedemptionQueue.put((Class<TwitchRedemptionEvent>) event.getClass(), new ArrayBlockingQueue<>(10));
+			}
+		}
 		twitchRedemptionQueue.get(event.getClass()).add(event);
 	}
 
