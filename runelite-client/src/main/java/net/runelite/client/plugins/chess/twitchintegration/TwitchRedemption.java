@@ -6,8 +6,8 @@ import javax.annotation.Nullable;
 
 public enum TwitchRedemption {
 	// @formatter:off
-	ChangeBlackBoardColor("Change Black Chessboard Tiles", "black"), 
-	ChangeWhiteBoardColor("Change White Chessboard Tiles", "white"), 
+	ChangeBlackBoardColor("Change Black Chessboard Tiles", "blackTileColor"), 
+	ChangeWhiteBoardColor("Change White Chessboard Tiles", "whiteTileColor"), 
 	DiscoChessboard("Everybody to the dancefloor");
 	// @formatter:on
 
