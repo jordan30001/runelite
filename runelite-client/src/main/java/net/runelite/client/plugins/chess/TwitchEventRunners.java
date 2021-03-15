@@ -15,7 +15,6 @@ import com.github.twitch4j.pubsub.events.HypeTrainLevelUpEvent;
 import com.github.twitch4j.pubsub.events.HypeTrainStartEvent;
 import com.github.twitch4j.pubsub.events.RewardRedeemedEvent;
 
-import kotlin.jvm.functions.Function1;
 import net.runelite.client.plugins.chess.data.ChessEmotes;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchRedemption;

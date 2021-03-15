@@ -24,12 +24,12 @@
  */
 package net.runelite.client.plugins.chess;
 
-import lombok.Value;
-import net.runelite.api.coords.WorldPoint;
-import net.runelite.client.plugins.chess.data.ChessMarkerPoint;
+import java.awt.Color;
 
 import javax.annotation.Nullable;
-import java.awt.*;
+
+import lombok.Value;
+import net.runelite.api.coords.WorldPoint;
 
 /**
  * Used to denote marked tiles and their colors.

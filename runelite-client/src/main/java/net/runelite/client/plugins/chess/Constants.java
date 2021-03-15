@@ -5,8 +5,6 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
-import net.runelite.client.plugins.chess.data.ChessAscii;
-
 public final class Constants {
 	public static final String INVALID_COLOR = "Beep Boop '%s' is an invalid color %s";
 	public static final Color FULL_ALPHA = new Color(0, 0, 0, 0);

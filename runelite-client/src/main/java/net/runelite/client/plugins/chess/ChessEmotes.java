@@ -26,13 +26,10 @@
 package net.runelite.client.plugins.chess;
 
 
-import com.google.common.collect.ImmutableMap;
-
 import java.awt.image.BufferedImage;
 import java.util.Map;
 
-import net.runelite.client.plugins.chess.ChessPlugin;
-import net.runelite.client.util.ImageUtil;
+import com.google.common.collect.ImmutableMap;
 
 public enum ChessEmotes {
     ThreeHead("3Head"),

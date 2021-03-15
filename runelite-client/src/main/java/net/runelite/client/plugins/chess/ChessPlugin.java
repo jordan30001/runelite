@@ -78,7 +78,6 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.plugins.chatnotifications.OverheadTextInfo;
 import net.runelite.client.plugins.chess.data.ChessEmotes;
 import net.runelite.client.plugins.chess.data.ChessMarkerPoint;
 import net.runelite.client.plugins.chess.data.ChessMarkerPointType;
