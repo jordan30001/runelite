@@ -5,6 +5,8 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
+import net.runelite.client.plugins.chess.data.ChessAscii;
+
 public final class Constants {
 	public static final String INVALID_COLOR = "Beep Boop '%s' is an invalid color %s";
 	public static final Color FULL_ALPHA = new Color(0, 0, 0, 0);
@@ -18,8 +20,8 @@ public final class Constants {
 		
 		public static final String USER_MOVE_PIECE1 = "move";
 		public static final String USER_MOVE_PIECE2 = "m";
-		public static final String RESPONSE_MOVE_PIECE_HELP = "@%s -? Valid input is 'move|m a1a2|a1 a2'";
-		public static final String RESPONSE_MOVE_PIECE_VALID = null;
+		public static final String RESPONSE_MOVE_PIECE_HELP = "@%s -> Valid input is 'move|m a1a2|a1 a2'";
+		public static final String RESPONSE_MOVE_PIECE_VALID = "@%s -> Move %s: %s -> %s";//ChessAscii.fromFEN(a).ascii, sFrom, sTo
 
 		
 		public static final String MOD_RESTART_BOARD = "restart";
