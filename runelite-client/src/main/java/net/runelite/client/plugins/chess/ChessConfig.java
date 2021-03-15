@@ -25,9 +25,13 @@
  */
 package net.runelite.client.plugins.chess;
 
-import net.runelite.client.config.*;
+import java.awt.Color;
 
-import java.awt.*;
+import net.runelite.client.config.Alpha;
+import net.runelite.client.config.Config;
+import net.runelite.client.config.ConfigGroup;
+import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.ConfigSection;
 
 @ConfigGroup("chess")
 public interface ChessConfig extends Config {

@@ -1,23 +1,5 @@
 package net.runelite.client.plugins.chess;
 
-import static ch.qos.logback.core.CoreConstants.UNBOUND_HISTORY;
-import static ch.qos.logback.core.CoreConstants.UNBOUNDED_TOTAL_SIZE_CAP;
-
-import java.io.File;
-import java.util.Date;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
-import ch.qos.logback.core.CoreConstants;
-import ch.qos.logback.core.rolling.helper.ArchiveRemover;
-import ch.qos.logback.core.rolling.helper.CompressionMode;
-import ch.qos.logback.core.rolling.helper.Compressor;
-import ch.qos.logback.core.rolling.helper.FileFilterUtil;
-import ch.qos.logback.core.rolling.helper.FileNamePattern;
-import ch.qos.logback.core.rolling.helper.RenameUtil;
-import ch.qos.logback.core.util.FileSize;
-
 /**
 * <code>TimeBasedRollingPolicy</code> is both easy to configure and quite
 * powerful. It allows the roll over to be made based on time. It is possible to

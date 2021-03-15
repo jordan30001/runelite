@@ -25,11 +25,12 @@
  */
 package net.runelite.client.plugins.chess;
 
-import lombok.EqualsAndHashCode;
-import lombok.Value;
+import java.awt.Color;
 
 import javax.annotation.Nullable;
-import java.awt.*;
+
+import lombok.EqualsAndHashCode;
+import lombok.Value;
 
 /**
  * Used for serialization of ground marker points.
