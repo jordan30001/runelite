@@ -570,8 +570,6 @@ public class ChessPlugin extends Plugin {
 			return;
 		}
 
-		System.err.println(msg.toString());
-
 		if (("Twitch".equals(msg.getSender()) && twitchNames.contains(msg.getName().toLowerCase())) || (msg.getSender() == null && gameNames.contains(msg.getName().toLowerCase()))) {
 			/*
 			 * 
