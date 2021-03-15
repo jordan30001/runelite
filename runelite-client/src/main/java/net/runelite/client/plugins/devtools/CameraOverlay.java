@@ -72,18 +72,13 @@ public class CameraOverlay extends OverlayPanel
 				.build());
 
 		panelComponent.getChildren().add(LineComponent.builder()
-				.left("ViewXOff")
-				.right("" + client.getViewportYOffset())
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.left("ViewXOff")
-				.right("" + client.getViewportXOffset())
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
 				.left("X")
 				.right("" + client.getCameraX())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("X2")
+				.right("" + client.getCameraX2())
 				.build());
 
 		panelComponent.getChildren().add(LineComponent.builder()
@@ -92,8 +87,18 @@ public class CameraOverlay extends OverlayPanel
 				.build());
 
 		panelComponent.getChildren().add(LineComponent.builder()
+				.left("Y2")
+				.right("" + client.getCameraY2())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
 				.left("Z")
 				.right("" + client.getCameraZ())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("Z2")
+				.right("" + client.getCameraZ2())
 				.build());
 
 		panelComponent.getChildren().add(LineComponent.builder()
@@ -122,59 +127,6 @@ public class CameraOverlay extends OverlayPanel
 				.build());
 
 		panelComponent.getChildren().add(LineComponent.builder()
-				.left("CanvP")
-				.right("" + client.getLocalPlayer().getCanvasTilePoly())
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.left("LocL")
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.right("" + client.getLocalPlayer().getLocalLocation())
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.left("PlayX")
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.right("" + client.getLocalPlayer().getLocalLocation().getX())
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.right("" + client.getLocalPlayer().getLocalLocation().getSceneX())
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.left("VHeight")
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.right("" + client.getViewportHeight())
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.left("VWidth")
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.right("" + client.getViewportWidth())
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.left("PlayY")
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.right("" + client.getLocalPlayer().getLocalLocation().getY())
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
-				.right("" + client.getLocalPlayer().getLocalLocation().getSceneY())
-				.build());
-
-		panelComponent.getChildren().add(LineComponent.builder()
 				.left("OcuY")
 				.right("" + client.getOculusOrbFocalPointY())
 				.build());
@@ -183,6 +135,43 @@ public class CameraOverlay extends OverlayPanel
 				.left("OcuX")
 				.right("" + client.getOculusOrbFocalPointX())
 				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("SceneY")
+				.right("" + client.getBaseY())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("SceneX")
+				.right("" + client.getBaseX())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("CenterX")
+				.right("" + client.getCenterX())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("CenterY")
+				.right("" + client.getCenterY())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("Scene")
+				.right("" + client.getScene())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("LPW")
+				.right("" + client.getLocalPlayer().getWorldLocation())
+				.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+				.left("LPW")
+				.right("" + client.getLocalPlayer().getLocalLocation())
+				.build());
+
+
 
 
 		return super.render(graphics);

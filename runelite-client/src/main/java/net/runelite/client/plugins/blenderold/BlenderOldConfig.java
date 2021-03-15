@@ -24,14 +24,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.runelite.client.plugins.blender;
+package net.runelite.client.plugins.blenderold;
 
 import net.runelite.client.config.*;
 
 import java.awt.*;
 
 @ConfigGroup("blender")
-public interface BlenderConfig extends Config {
+public interface BlenderOldConfig extends Config {
     @ConfigItem(
             keyName = "sendCamera",
             name = "Send Camera Data",
@@ -61,35 +61,5 @@ public interface BlenderConfig extends Config {
     default boolean sendNPCData() {
         return false;
     }
-
-    @ConfigItem(
-            keyName = "sendPlayPos",
-            name = "Send Player Position",
-            description = "Sends NPC Data to Blender",
-            position = 3
-    )
-    default boolean sendPlayPos() {
-        return false;
-    }
-
-    @ConfigItem(
-            keyName = "sendPlayOrient",
-            name = "Send Player Orientation",
-            description = "Sends Player Position to Blender",
-            position = 4
-    )
-    default boolean sendPlayOrient() {
-        return false;
-    }
-
-    @ConfigItem(
-            keyName = "getPortNumber",
-            name = "port number",
-            description = "port number",
-            position = 5
-    )
-    default int getPortNumber() {return 6969;};
-
-
 
 }

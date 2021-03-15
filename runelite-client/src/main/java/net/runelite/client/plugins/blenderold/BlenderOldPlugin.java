@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.blender;
+package net.runelite.client.plugins.blenderold;
 
 import com.fasterxml.jackson.databind.util.JSONPObject;
 import com.google.gson.Gson;
@@ -9,10 +9,8 @@ import com.google.inject.Provides;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
-import net.runelite.api.GameState;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.Player;
-import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.kit.KitType;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -32,25 +30,27 @@ import net.runelite.client.ui.overlay.OverlayPriority;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
-import java.io.*;
-import java.net.*;
-import java.nio.charset.Charset;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.*;
-
-import static net.runelite.api.GameState.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static net.runelite.api.MenuAction.RUNELITE_OVERLAY_CONFIG;
 import static net.runelite.client.ui.overlay.OverlayManager.OPTION_CONFIGURE;
 
 @PluginDescriptor(
-        name = "Blender",
+        name = "BlenderOld",
         description = "Blender plugin",
         tags = {"Blender"}
 )
 @Slf4j
-public class BlenderPlugin extends Plugin {
+public class BlenderOldPlugin extends Plugin {
 
     private ExecutorService es = Executors.newFixedThreadPool(1);
 
@@ -58,7 +58,7 @@ public class BlenderPlugin extends Plugin {
     public Client client;
 
     @Inject
-    private BlenderConfig config;
+    private BlenderOldConfig config;
 
     @Inject
     private ItemManager itemManager;
@@ -66,79 +66,17 @@ public class BlenderPlugin extends Plugin {
     private Gson gson;
 
     @Provides
-    BlenderConfig provideConfig(ConfigManager configManager) {
-        return configManager.getConfig(BlenderConfig.class);
+    BlenderOldConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(BlenderOldConfig.class);
     }
-
-    private ServerSocket server;
-    private ExecutorService serverThread;
-    private ArrayBlockingQueue<JsonObject> dataToSend;
-    private Future<Object> serverFuture;
-    private boolean stop = true;
-
 
     @Override
     protected void startUp() throws Exception {
-        server = PortAvailable(config.getPortNumber());
-        if (server == null) return;
-        dataToSend = new ArrayBlockingQueue<>(10);
-        serverThread = Executors.newFixedThreadPool(1);
-        serverFuture = serverThread.submit(runServer());
     }
 
-    public static final ServerSocket PortAvailable(int port) {
-        ServerSocket socket = null;
-        try {
-            socket = new ServerSocket(port);
-            return socket;
-        } catch (IOException ioe) {
-            log.info(String.format("blender port (%d) already in use", port));
-            try {
-                if (socket != null) socket.close();
-            } catch (IOException ioe2) {
-
-            }
-        }
-        return null;
-    }
-
-    public Callable<Object> runServer() {
-        return () -> {
-            while (true) {
-                try (Socket blenderClient = server.accept();) {
-                    JsonObject jsonObj = dataToSend.peek();
-                    if (jsonObj != null) jsonObj = dataToSend.poll();
-                    else {
-                        blenderClient.close();
-                        continue;
-                    }
-                    OutputStream os = blenderClient.getOutputStream();
-                    os.write(jsonObj.toString().getBytes("utf-8"));
-                    if (Thread.currentThread().isInterrupted()) return null;
-                } catch (Throwable t) {
-                    if (t instanceof InterruptedException || Thread.currentThread().isInterrupted()) return null;
-                    else if (t instanceof SocketException) {
-                        t.printStackTrace();
-                        continue;
-                    } else {
-                        t.printStackTrace();
-                        throw t;
-                    }
-                }
-            }
-        };
-    }
 
     @Override
     protected void shutDown() throws Exception {
-
-        if (serverFuture != null) serverFuture.cancel(true);
-        if (serverThread != null) serverThread.shutdownNow();
-        try {
-            if (server != null) server.close();
-        } catch (Exception e) {
-        }
-        if (serverThread != null) serverThread.awaitTermination(5, TimeUnit.SECONDS);
     }
 
     private JsonObject getCamera(JsonObject parent) {
@@ -157,6 +95,7 @@ public class BlenderPlugin extends Plugin {
         cameraJSON.addProperty("SceneX", "" + client.getBaseX());
         cameraJSON.addProperty("SceneY", "" + client.getBaseY());
 
+
         parent.getAsJsonArray("data").add(cameraJSON);
         return cameraJSON;
     }
@@ -167,59 +106,21 @@ public class BlenderPlugin extends Plugin {
         if (p == null) {
             return parent;
         }
+        parent.getAsJsonArray("data").add(playerJSON);
         playerJSON.addProperty("type", "playermodelids");
 
         for (KitType kitType : KitType.values()) {
-            if(p.getPlayerComposition() == null) {
-                return parent;
-            }
             int itemId = p.getPlayerComposition().getEquipmentId(kitType);
             if (itemId != -1) {
                 playerJSON.addProperty(kitType.name(), itemId);
             }
         }
 
-        parent.getAsJsonArray("data").add(playerJSON);
         return parent;
     }
 
     @Subscribe
-    public void onGameStateChanged(GameStateChanged event){
-        switch(event.getGameState()){
-            case UNKNOWN:
-            case STARTING:
-            case LOGIN_SCREEN:
-            case LOGIN_SCREEN_AUTHENTICATOR:
-            case LOGGING_IN:
-            case LOADING:
-            case CONNECTION_LOST:
-            case HOPPING:
-                stop = true;
-                break;
-            case LOGGED_IN:
-                stop = false;
-                break;
-        }
-    }
-
-    public void runData(){
-        while (true){
-            JsonObject data = new JsonObject();
-            data.add("data", new JsonArray());
-            if (config.sendPlayerData()) {
-                getPlayerModels(data);
-            }
-            if (config.sendCamera()) {
-                getCamera(data);
-            }
-
-            dataToSend.offer(data);
-        }
-    }
-
-    @Subscribe
     public void onBeforeRender(BeforeRender event) {
-        if(stop) return;
         JsonObject data = new JsonObject();
         data.add("data", new JsonArray());
         if (config.sendPlayerData()) {
@@ -229,11 +130,7 @@ public class BlenderPlugin extends Plugin {
             getCamera(data);
         }
 
-        dataToSend.offer(data);
-//        System.out.println("".format("Real Dimensions = %s", client.getViewportHeight()));
-//        System.out.println("".format("Real Dimensions = %s", client.getViewportWidth()));
-//        System.out.println("".format("Real Dimensions = %s", client.getViewportXOffset()));
-//        System.out.println("".format("Real Dimensions = %s", client.getViewportYOffset()));
+        es.submit(() -> socketConnect(data.toString()));
 //        System.out.println("ViewportXOffset == " + client.getViewportXOffset());
 //        System.out.println("CameraX2 == " + client.getCameraX2());
 //        System.out.println("CenterY == " + client.getCenterY());
@@ -249,5 +146,28 @@ public class BlenderPlugin extends Plugin {
 
 
     }
+
+
+    private void socketConnect(String data) {
+        try {
+            String sURL = "http://localhost:8005/?data=" + URLEncoder.encode(data, "utf-8");
+
+            URL url = new URL(sURL);
+            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("GET");
+            con.setConnectTimeout(6000);
+            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+
+//            String line;
+//            while ((line = in.readLine()) != null) {
+//                System.out.println(line);
+//            }
+            in.close();
+        } catch (
+                IOException ioe) {
+            ioe.printStackTrace();
+        }
+    }
+
 
 }
