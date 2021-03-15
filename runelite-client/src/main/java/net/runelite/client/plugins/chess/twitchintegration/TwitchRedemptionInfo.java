@@ -1,24 +1,20 @@
-package net.runelite.client.plugins.chess;
+package net.runelite.client.plugins.chess.twitchintegration;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import net.runelite.client.plugins.chess.Utils;
 
-@AllArgsConstructor
 public class TwitchRedemptionInfo {
 
 	private static final ReentrantLock lock = new ReentrantLock();
 	private static final Timer timer = new Timer(true);
-
-	@Getter(AccessLevel.PUBLIC)
-	private Function<Integer, Boolean> callback;
 
 	@Getter(AccessLevel.PUBLIC)
 	private int currentCallCount;
@@ -36,10 +32,11 @@ public class TwitchRedemptionInfo {
 	private volatile boolean finished;
 
 	private TimerTask currentTask;
+	
+	@Getter(AccessLevel.PUBLIC)
+	private final Map<String, Object> vars = new HashMap<>();
 
-	public TwitchRedemptionInfo(Function<Integer, Boolean> callback) {
-		this.callback = callback;
-		this.currentCallCount = 0;
+	public <F extends CustomFunction> TwitchRedemptionInfo() {
 	}
 
 	public void startCountdown(long displayTime) {

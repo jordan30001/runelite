@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Jordan Atwood <nightfirecat@protonmail.com>
+ * Copyright (c) 2017, Adam <Adam@sigterm.info>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,25 +22,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.client.plugins.chess;
+package net.runelite.client.plugins.chess.data;
 
 import lombok.Value;
-import net.runelite.api.coords.WorldPoint;
-import net.runelite.client.plugins.chess.data.ChessMarkerPoint;
-
-import javax.annotation.Nullable;
-import java.awt.*;
 
 /**
- * Used to denote marked tiles and their colors.
- * Note: This is not used for serialization of ground markers;
+ * Represents 3 vertices as a three-dimensional Triangle.
  */
 @Value
-class ColorTileMarker
+public class Triangle
 {
-	private WorldPoint worldPoint;
-	@Nullable
-	private Color color;
-	@Nullable
-	private String label;
+	private final Vertex a;
+	private final Vertex b;
+	private final Vertex c;
 }
