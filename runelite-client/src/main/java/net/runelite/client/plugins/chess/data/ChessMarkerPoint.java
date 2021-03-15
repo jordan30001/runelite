@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2019, Jordan Atwood <nightfirecat@protonmail.com>
+ * Copyright (c) 2018, TheLonelyDev <https://github.com/TheLonelyDev>
+ * Copyright (c) 2018, Adam <Adam@sigterm.info>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,23 +23,27 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.client.plugins.chess;
+package net.runelite.client.plugins.chess.data;
 
+import lombok.EqualsAndHashCode;
 import lombok.Value;
-import net.runelite.api.coords.WorldPoint;
-import net.runelite.client.plugins.chess.data.ChessMarkerPoint;
 
 import javax.annotation.Nullable;
 import java.awt.*;
 
 /**
- * Used to denote marked tiles and their colors.
- * Note: This is not used for serialization of ground markers;
+ * Used for serialization of ground marker points.
  */
 @Value
-class ColorTileMarker
+@EqualsAndHashCode(exclude = { "color", "label" , "type"})
+public class ChessMarkerPoint
 {
-	private WorldPoint worldPoint;
+	private int regionId;
+	private int regionX;
+	private int regionY;
+	private int z;
+	@Nullable
+	ChessMarkerPointType type;
 	@Nullable
 	private Color color;
 	@Nullable

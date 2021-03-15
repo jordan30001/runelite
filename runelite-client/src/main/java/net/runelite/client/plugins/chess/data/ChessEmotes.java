@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.client.plugins.chess;
+package net.runelite.client.plugins.chess.data;
 
 
 import com.google.common.collect.ImmutableMap;
@@ -54,7 +54,7 @@ public enum ChessEmotes {
 
     private static final Map<String, ChessEmotes> emojiMap;
 
-    private final String trigger;
+    public final String trigger;
 
     static {
         ImmutableMap.Builder<String, ChessEmotes> builder = new ImmutableMap.Builder<>();
@@ -70,19 +70,19 @@ public enum ChessEmotes {
         this.trigger = trigger;
     }
 
-    BufferedImage loadImage() {
+    public BufferedImage loadImage() {
     	return null;
         //return ImageUtil.loadImageResource(getClass(), this.name().toLowerCase() + ".png");
     }
 
-    static ChessEmotes getEmoji(String trigger) {
+    public static ChessEmotes getEmoji(String trigger) {
         return emojiMap.get(trigger);
     }
-    String toHTMLString(ChessPlugin plugin){
+    public String toHTMLString(ChessPlugin plugin){
     	return "<img=" + (plugin.modIconsStart + this.ordinal()) + ">";
     }
 
-    String toHTMLString(int startingOrdinal){
+    public String toHTMLString(int startingOrdinal){
         return "<img=" + (startingOrdinal + this.ordinal()) + ">";
     }
 }

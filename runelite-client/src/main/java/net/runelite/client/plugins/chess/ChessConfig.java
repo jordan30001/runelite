@@ -93,41 +93,8 @@ public interface ChessConfig extends Config {
             position = 1,
             section = chessPieceSettings
     )
-    default String chessPieceTypes1() {
-        return "B Rook,B Knight,B Bishop,B Queen, B King,B Bishop,B Knight,B Rook";
-    }
-
-    @ConfigItem(
-            keyName = "chessPieceTypes2",
-            name = "chessPieceTypes2",
-            description = "Define chess piece username(s) sepparated by a comma here, this is required to let the plugin know which username is a chess piece",
-            position = 2,
-            section = chessPieceSettings
-    )
-    default String chessPieceTypes2() {
-        return "B Pawn,B Pawn,B Pawn,B Pawn,B Pawn,B Pawn,B Pawn,B Pawn";
-    }
-
-    @ConfigItem(
-            keyName = "chessPieceTypes3",
-            name = "chessPieceTypes3",
-            description = "Define chess piece username(s) sepparated by a comma here, this is required to let the plugin know which username is a chess piece",
-            position = 3,
-            section = chessPieceSettings
-    )
-    default String chessPieceTypes3() {
-        return "W Pawn,W Pawn,W Pawn,W Pawn,W Pawn,W Pawn,W Pawn,W Pawn";
-    }
-
-    @ConfigItem(
-            keyName = "chessPieceTypes4",
-            name = "chessPieceTypes4",
-            description = "Define chess piece username(s) sepparated by a comma here, this is required to let the plugin know which username is a chess piece",
-            position = 4,
-            section = chessPieceSettings
-    )
-    default String chessPieceTypes4() {
-        return "W Rook,W Knight,W Bishop,W Queen,W King,W Bishop,W Knight,W Rook";
+    default String chessPieceTypes() {
+        return "rnbqkbnrppppppppPPPPPPPPRNBQKBNR";
     }
 
     @ConfigItem(
@@ -284,5 +251,14 @@ public interface ChessConfig extends Config {
             section = debugOptionSettings
     )
     default boolean debugShowFrameTimes() {return false;}
+
+    @ConfigItem(
+            keyName = "debugCatJam",
+            name = "debugCatJam",
+            description = "testing rendering of chessboard color changes and flickering caused",
+            position = 6,
+            section = debugOptionSettings
+    )
+    default boolean debugCatJam() {return false;}
     
 }

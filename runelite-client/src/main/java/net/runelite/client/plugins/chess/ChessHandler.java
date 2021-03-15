@@ -1,56 +1,72 @@
 package net.runelite.client.plugins.chess;
 
-//import chesspresso.game.Game;
-import com.github.bhlangonijr.chesslib.Board;
-import com.github.bhlangonijr.chesslib.Piece;
-import com.github.bhlangonijr.chesslib.Square;
-import com.github.bhlangonijr.chesslib.move.Move;
+import com.loloof64.chess_lib_java.history.ChessHistoryNode;
+import com.loloof64.chess_lib_java.rules.Board;
+import com.loloof64.chess_lib_java.rules.GameInfo;
+import com.loloof64.chess_lib_java.rules.Move;
+import com.loloof64.chess_lib_java.rules.Position;
+import com.loloof64.chess_lib_java.rules.coords.BoardCell;
+import com.loloof64.chess_lib_java.rules.pieces.Piece;
+import com.loloof64.functional.monad.Either;
+
+import lombok.AccessLevel;
 import lombok.Getter;
+import net.runelite.client.plugins.chathistory.ChatHistoryPlugin;
 
 public class ChessHandler {
 
+	public static final String RANK = "ABCDEFGH";
+
 	private ChessPlugin plugin;
 	private ChessOverlay overlay;
-	@Getter
-	private Board board;
+	private Position position;
+	private Board startupBoard;
+	private String[][] pieceUsernames;
+	@Getter(AccessLevel.PUBLIC)
+	private ChessHistoryNode history;
 
-	public ChessHandler(ChessPlugin plugin, ChessOverlay overlay, Board board) {
+	public ChessHandler(ChessPlugin plugin, ChessOverlay overlay) {
 		this.plugin = plugin;
 		this.overlay = overlay;
-		this.board = board;
-		board.loadFromFen("8/8/8/2k5/5K2/5Q2/8/8 w - - 0 1");
-		System.err.println(board.toString());
-//		chesspresso.move.Move.createCastle()
-//		chesspresso.game.Game game = new Game();
-//		game.move
-		//this.board.clear();
+
+		this.pieceUsernames = new String[8][8];
 	}
 
-	public void initPiece(int x, int y, String pieceType) {
-		//Piece piece = Piece.valueOf(pieceType.toUpperCase().replaceFirst("B ", "BLACK_").replaceFirst("W ", "WHITE_"));
-		//board.setPiece(piece, Square.valueOf(Utils.getCharForNumber(x).toUpperCase() + y));
-		System.err.println(board.toString());
+	public void reset() {
+		this.position = null;
+		this.startupBoard = new Board(new Piece[8][8]);
+		this.history = null;
 	}
 
-	public boolean tryMove(String from, String to) {
+	public void initBaseBoard() {
+		this.position = Position.fromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").right();
+		history = ChessHistoryNode.rootNode(position, "start", "").right();
+	}
 
-		System.err.println("-");
-		System.err.println("-");
-		Square mFrom = Square.valueOf(from.toUpperCase());
-		Square mTo = Square.valueOf(to.toUpperCase());
-		Move move = new Move(mFrom, mTo);
-
-		if (board.isMoveLegal(new Move(mFrom, mTo), true)) {
-			board.doMove(move, true);
-			System.err.println(board.toString());
-			System.err.println("-");
-			System.err.println("-");
-			return true;
+	public void initPiece(int x, int y, char piece) {
+		if (startupBoard == null) {
+			this.startupBoard = new Board(new Piece[8][8]);
+			this.pieceUsernames = new String[8][8];
 		}
-		System.err.println(board.toString());
-		System.err.println("-");
-		System.err.println("-");
-		return false;
+		this.startupBoard.values()[x][y] = Piece.fromFEN(piece);
 	}
-
+	
+	public Either<Exception, Position> tryMove(int[] iMove) {
+		if(history == null) history = ChessHistoryNode.rootNode(position, "start", "").right();
+		BoardCell from = new BoardCell(iMove[0], iMove[1]);
+		BoardCell to = new BoardCell(iMove[2], iMove[3]);
+		Move move = new Move(from, to);
+		Either<Exception, Position> positionMove = position.move(move);
+		if (positionMove.isRight()) {
+			position = positionMove.right();
+			pieceUsernames[to.rank][to.file] = pieceUsernames[from.rank][from.file];
+			pieceUsernames[from.rank][from.file] = null;
+			history = ChessHistoryNode.nonRootNode(history, move, "", "").right();
+		}
+		return positionMove;
+	}
+	
+	public static final int[] getXYOffset(String sFrom, String sTo) {
+		return new int[] {Integer.parseInt(sFrom.substring(1)) - 1, RANK.indexOf(sFrom.charAt(0)), Integer.parseInt(sTo.substring(1)) - 1, RANK.indexOf(sTo.charAt(0))};
+	}
 }

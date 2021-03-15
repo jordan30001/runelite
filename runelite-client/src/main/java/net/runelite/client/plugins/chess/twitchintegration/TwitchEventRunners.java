@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.chess;
+package net.runelite.client.plugins.chess.twitchintegration;
 
 import com.github.twitch4j.pubsub.domain.FollowingData;
 import com.github.twitch4j.pubsub.domain.SubscriptionData;
@@ -15,10 +15,9 @@ import com.github.twitch4j.pubsub.events.HypeTrainLevelUpEvent;
 import com.github.twitch4j.pubsub.events.HypeTrainStartEvent;
 import com.github.twitch4j.pubsub.events.RewardRedeemedEvent;
 
-import kotlin.jvm.functions.Function1;
+import net.runelite.client.plugins.chess.ChessOverlay;
+import net.runelite.client.plugins.chess.ChessPlugin;
 import net.runelite.client.plugins.chess.data.ChessEmotes;
-import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
-import net.runelite.client.plugins.chess.twitchintegration.TwitchRedemption;
 import net.runelite.client.plugins.chess.twitchintegration.events.ChessboardColorChangeEvent;
 import net.runelite.client.plugins.chess.twitchintegration.events.ChessboardDisco;
 
@@ -50,7 +49,7 @@ public class TwitchEventRunners {
 		eventManager.RegisterListener(RewardRedeemedEvent.class, this::CheckChessBoardColorChange);
 		eventManager.RegisterListener(ChannelSubscribeEvent.class, this::onTwitchSub);
 		eventManager.RegisterListener(FollowingEvent.class, this::onFollower);
-
+		
 		/**
 		 * from twitch integration switch statemetn
 		 *
@@ -84,6 +83,7 @@ public class TwitchEventRunners {
 			break;
 		default:
 			break;
+		
 		}
 	}
 

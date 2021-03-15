@@ -22,17 +22,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.client.plugins.chess;
+package net.runelite.client.plugins.chess.data;
 
 import lombok.Value;
 
 /**
- * Represents 3 vertices as a three-dimensional Triangle.
+ * Represents a point in a three-dimensional space.
  */
 @Value
-public class Triangle
+public class Vertex
 {
-	private final Vertex a;
-	private final Vertex b;
-	private final Vertex c;
+	private final int x;
+	private final int y;
+	private final int z;
 }

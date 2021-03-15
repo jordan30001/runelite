@@ -1,37 +1,33 @@
 package net.runelite.client.plugins.chess.twitchintegration;
 
-import java.awt.Color;
-import java.awt.event.ActionListener;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+
+import javax.inject.Inject;
 
 import com.github.philippheuer.credentialmanager.CredentialManager;
 import com.github.philippheuer.credentialmanager.CredentialManagerBuilder;
 import com.github.philippheuer.credentialmanager.domain.Credential;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
+import com.github.philippheuer.events4j.api.service.IEventHandler;
 import com.github.twitch4j.TwitchClient;
 import com.github.twitch4j.TwitchClientBuilder;
 import com.github.twitch4j.auth.providers.TwitchIdentityProvider;
-import com.github.twitch4j.common.events.TwitchEvent;
+import com.github.twitch4j.chat.enums.TMIConnectionState;
+import com.github.twitch4j.chat.events.channel.ChannelMessageEvent;
 import com.github.twitch4j.helix.TwitchHelix;
 import com.github.twitch4j.helix.TwitchHelixBuilder;
 import com.github.twitch4j.helix.domain.ChannelInformationList;
 import com.github.twitch4j.helix.domain.UserList;
 import com.github.twitch4j.pubsub.TwitchPubSub;
-import com.github.twitch4j.pubsub.events.ChannelBitsEvent;
-import com.github.twitch4j.pubsub.events.ChannelCommerceEvent;
-import com.github.twitch4j.pubsub.events.RewardRedeemedEvent;
 import com.netflix.hystrix.HystrixCommand;
 
 import lombok.extern.slf4j.Slf4j;
@@ -41,9 +37,12 @@ import net.runelite.client.plugins.chess.ChessPlugin;
 
 @Slf4j
 public class TwitchIntegration {
-	private TwitchClient client;
+	private TwitchClient twitchClient;
 	private TwitchPubSub twitchPubSub;
+	private TwitchHelix twitchHelix;
+
 	private String channelID;
+	@Inject
 	private ChessConfig config;
 	private ChessOverlay overlay;
 	private ChessPlugin plugin;
@@ -64,32 +63,34 @@ public class TwitchIntegration {
 
 	public void start() {
 		try {
-			TwitchHelix twitchHelix = TwitchHelixBuilder.builder().withClientId(config.clientID())
-					.withClientSecret(config.OAUthCode()).build();
-			UserList list = twitchHelix.getUsers(config.OAUthCode(), null, Arrays.asList(config.channelUsername()))
-					.execute();
+			OAuth2Credential oauth = new OAuth2Credential("twitch", config.OAUthCode());
+			twitchHelix = TwitchHelixBuilder.builder().withClientId(config.clientID()).withClientSecret(config.OAUthCode()).build();
+			UserList list = twitchHelix.getUsers(config.OAUthCode(), null, Arrays.asList(config.channelUsername())).execute();
 
-			HystrixCommand<ChannelInformationList> request = twitchHelix.getChannelInformation(config.OAUthCode(),
-					Arrays.asList(list.getUsers().get(0).getId()));
+			HystrixCommand<ChannelInformationList> request = twitchHelix.getChannelInformation(config.OAUthCode(), Arrays.asList(list.getUsers().get(0).getId()));
 
 			ChannelInformationList ci = request.execute();
 
 			channelID = ci.getChannels().get(0).getBroadcasterId();
 
-			client = TwitchClientBuilder.builder().withEnablePubSub(true).withClientId(config.clientID())
-					.withClientSecret(config.OAUthCode()).setBotOwnerIds(Arrays.asList(channelID)).build();
+			twitchClient = TwitchClientBuilder.builder()
+					.withEnablePubSub(true)
+					.withEnableChat(true)
+					.withClientId(config.clientID())
+					.withClientSecret(config.OAUthCode())
+					.setBotOwnerIds(Arrays.asList(channelID))
+					.withChatAccount(oauth)
+					.build();
+			twitchClient.getChat().getEventManager().onEvent(ChannelMessageEvent.class, this::DispatchEvents);
 
-			client.getPubSub().connect();
+			twitchClient.getPubSub().connect();
 
 			CredentialManager credentialManager = CredentialManagerBuilder.builder().build();
-			credentialManager.registerIdentityProvider(
-					new TwitchIdentityProvider(config.clientID(), config.OAUthCode(), "https://localhost"));
+			credentialManager.registerIdentityProvider(new TwitchIdentityProvider(config.clientID(), config.OAUthCode(), "https://localhost"));
 
-			Credential cred = new OAuth2Credential("twitch", "*authToken*");
-			credentialManager.addCredential("twitch", cred);
+			credentialManager.addCredential("twitch", oauth);
 
-			OAuth2Credential oauth = new OAuth2Credential("twitch", config.OAUthCode());
-			client.getPubSub().listenForChannelPointsRedemptionEvents(oauth, channelID);
+			twitchClient.getPubSub().listenForChannelPointsRedemptionEvents(oauth, channelID);
 
 		} catch (Exception e) {
 			StringWriter sw = new StringWriter();
@@ -98,13 +99,24 @@ public class TwitchIntegration {
 
 			// bad twitch4j leaking our information, lets get rid of it :(
 			throw new RuntimeException(sw.toString().replace(config.OAUthCode(), ""));
+		} finally {
+		}
+	}
+
+	public boolean isRunning() {
+		try {
+			return twitchClient != null && twitchClient.getChat() != null && twitchClient.getChat().getConnectionState().equals(TMIConnectionState.CONNECTED);
+		} catch (RuntimeException re) {
+			re.printStackTrace();
+			return false;
 		}
 	}
 
 	public void RegisterPubSubListener(Class<?> eventType) {
 		if (subscribedEvents.contains(eventType))
 			return;
-		client.getEventManager().onEvent(eventType, this::DispatchEvents);
+		subscribedEvents.add(eventType);
+		twitchClient.getEventManager().onEvent(eventType, this::DispatchEvents);
 	}
 
 	public <E> void RegisterListener(Class<E> eventClass, Consumer<E> callback) {
@@ -122,7 +134,7 @@ public class TwitchIntegration {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <E> void DispatchEvents(E event) {
+	private <E> void DispatchEvents(E event) {
 		try {
 			lock.readLock().lock();
 			List<Consumer<?>> callbacks = eventListeners.getOrDefault((event.getClass()), null);
@@ -133,6 +145,16 @@ public class TwitchIntegration {
 		} finally {
 			lock.readLock().unlock();
 		}
+	}
+
+	public void sendMessage(String message) {
+		if (twitchClient.getChat().isChannelJoined(config.channelName()) == false) {
+			twitchClient.getChat().joinChannel(config.channelName());
+		}
+		if (twitchClient.getChat().sendMessage(config.channelName(), message)) {
+			System.err.println("not sent");
+		}
+
 	}
 
 }

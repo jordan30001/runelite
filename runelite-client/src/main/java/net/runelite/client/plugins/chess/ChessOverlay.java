@@ -42,14 +42,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -69,6 +63,10 @@ import net.runelite.api.Point;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.plugins.chess.Utils.Function;
+import net.runelite.client.plugins.chess.data.ChessMarkerPointType;
+import net.runelite.client.plugins.chess.data.ColorTileMarker;
+import net.runelite.client.plugins.chess.data.Triangle;
+import net.runelite.client.plugins.chess.data.Vertex;
 import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
@@ -88,9 +86,9 @@ public class ChessOverlay extends Overlay {
 	public final ChessConfig config;
 	private final ChessPlugin plugin;
 	public static Set<String> chessPieceUsername;
-	public static HashMap<String, String> usernameToType;
-	private BufferedImage lastFrame;
-	private Graphics lastFrameGraphics;
+	public static HashMap<String, Character> usernameToType;
+	private BufferedImage globalImage;
+	private Graphics globalGraphics;
 	@Setter(AccessLevel.PUBLIC)
 	private volatile boolean needsUpdate = true;
 	@Getter
@@ -112,45 +110,32 @@ public class ChessOverlay extends Overlay {
 
 	@Override
 	public Dimension render(Graphics2D graphics) {
+		Graphics imageG = null;
 		try {
+			if (globalImage != null && (client.getCanvasWidth() == globalImage.getWidth() && client.getCanvasHeight() == globalImage.getHeight())) {
+				graphics.drawImage(globalImage, 0, 0, null);
+			} else {
+				if (globalGraphics != null)
+					globalGraphics.dispose();
+				globalImage = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(), BufferedImage.TYPE_INT_ARGB);
+				globalGraphics = globalImage.getGraphics();
+			}
 			atom.set(getConfig().debugShowRandomPlayersCount());
 			long startTime = System.currentTimeMillis();
 //		 render previous frame if the game hasn't requested another gamerender yet
-//		if (needsUpdate == false && lastFrame != null) {
-//			graphics.drawImage(lastFrame, 0, 0, null);
-//			return null;
-//		}
-			final Collection<ColorTileMarker> points = plugin.getPoints();
+//			if (needsUpdate == false && image != null) {
+//				graphics.drawImage(image, 0, 0, null);
+//				return null;
+//			}
 			BufferedImage image = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(), BufferedImage.TYPE_INT_ARGB);
-			Graphics g = image.getGraphics();
+			imageG = image.getGraphics();
+			final Collection<ColorTileMarker> points = plugin.getPoints();
 			if (config.showBackground()) {
-				g.setColor(config.backgroundColor());
-				g.fillRect(0, 0, image.getWidth(), image.getHeight());
+				imageG.setColor(config.backgroundColor());
+				imageG.fillRect(0, 0, image.getWidth(), image.getHeight());
 			}
 
-			// if (getConfig().debug()) {
-			renderTiles(g, points);
-//		} else {
-//			if (lastFrame == null) {
-//				lastFrame = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(),
-//						BufferedImage.TYPE_INT_ARGB);
-//				lastFrameGraphics = lastFrame.getGraphics();
-//				renderTiles(g, points);
-//			} else {
-//				if (lastFrame.getWidth() != image.getWidth() || lastFrame.getHeight() != image.getHeight()) {
-//					lastFrame = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(),
-//							BufferedImage.TYPE_INT_ARGB);
-//					lastFrameGraphics = lastFrame.getGraphics();
-//					renderTiles(g, points);
-//				} else {
-//					if (needsUpdate == false)
-//						g.drawImage(lastFrame, 0, 0, lastFrame.getWidth(), lastFrame.getHeight(), null);
-//					else {
-//						renderTiles(g, points);
-//					}
-//				}
-//			}
-//		}
+			renderTiles(imageG, points);
 
 			new HashSet<>(getPlayerPolygonsTris().keySet()).forEach(playerName -> {
 				boolean remove = true;
@@ -167,9 +152,8 @@ public class ChessOverlay extends Overlay {
 			// generate PPTs
 			getPlayers.get().filter(renderPlayer).forEach(ChessOverlay.this::generatePPTs);
 			// grab PPT data
-			getPlayerPolygonsTris().values().stream().forEach(PlayerPolygonsTriangles::grabData);
+			getPlayerPolygonsTris().values().stream().sequential().forEach(PlayerPolygonsTriangles::grabData);
 			// update PPTs
-
 			if (getConfig().debugUseMultithreading()) {
 				mainThreadPool.submit(() -> getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> updatePlayerPolygonsTriangles(ppt))).get();
 			} else {
@@ -181,7 +165,7 @@ public class ChessOverlay extends Overlay {
 			int[] dataBuffer = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
 
 			mainThreadPool.submit(() -> getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> {
-				if (ppt == null)
+				if (ppt == null || ppt.trisX == null)
 					return;
 				Polygon[] polygons = ppt.polygons;
 				Triangle[] triangles = ppt.triangles;
@@ -190,18 +174,20 @@ public class ChessOverlay extends Overlay {
 					final int ii = i;
 					Triangle t = triangles[i];
 					if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
-						clearPolygon(image, image.getWidth(), image.getHeight(), polygons[ii]);
+						clearPolygon(dataBuffer, image.getWidth(), image.getHeight(), polygons[ii]);
 					}
 				}
 			})).get();
 
-			// lastFrameGraphics.drawImage(image, 0, 0, null);
 			graphics.drawImage(image, 0, 0, null);
 			if (getConfig().debugShowFrameTimes()) {
-				clientUI.getFrame().setTitle(" - Chess FT: " + (System.currentTimeMillis() - startTime));
+				int frameTime = (int) (System.currentTimeMillis() - startTime);
+				clientUI.getFrame().setTitle(String.format("Frame Time: %d, Average Frame Time: %d", frameTime, Utils.FrameTimeLogger.INSTANCE.getFrameTimeAverage(frameTime)));
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
+		} finally {
+			imageG.dispose();
 		}
 		return null;
 	}
@@ -218,7 +204,7 @@ public class ChessOverlay extends Overlay {
 	}
 
 	private PlayerPolygonsTriangles updatePlayerPolygonsTriangles(PlayerPolygonsTriangles ppt) {
-		if (ppt == null)
+		if (ppt == null || ppt.trisX == null)
 			return ppt;
 
 		Polygon[] polygons = ppt.nextFramePolygons;
@@ -247,7 +233,25 @@ public class ChessOverlay extends Overlay {
 				continue;
 			}
 
-			Color tileColor = point.getColor();
+			Color tileColor = null;
+			ChessMarkerPointType type = point.getType();
+			switch (type) {
+			case BLACK:
+				tileColor = getConfig().blackTileColor();
+				break;
+			case WHITE:
+				tileColor = getConfig().whiteTileColor();
+				break;
+			case FULL_ALPHA:
+				tileColor = Constants.FULL_ALPHA;
+				break;
+			default:
+				tileColor = point.getColor();
+				break;
+			}
+
+			// point.isBlack() ? getConfig().blackTileColor() :
+			// getConfig().whiteTileColor();
 
 			drawTile((Graphics2D) g, worldPoint, tileColor, point.getLabel());
 		}
@@ -377,17 +381,21 @@ public class ChessOverlay extends Overlay {
 		}
 
 		public void grabData() {
-			Model m = player.getModel();
-			trisX = m.getTrianglesX();
-			trisY = m.getTrianglesY();
-			trisZ = m.getTrianglesZ();
-			vertsX = m.getVerticesX();
-			vertsY = m.getVerticesY();
-			vertsZ = m.getVerticesZ();
-			nextFramePolygons = player.getPolygons();
-			nextFrameModelHash = m.getHash();
-			nextFrameTrianglesCount = m.getTrianglesCount();
-			nextFrameVerticesCount = m.getVerticesCount();
+			try {
+				Model m = player.getModel();
+				trisX = m.getTrianglesX();
+				trisY = m.getTrianglesY();
+				trisZ = m.getTrianglesZ();
+				vertsX = m.getVerticesX();
+				vertsY = m.getVerticesY();
+				vertsZ = m.getVerticesZ();
+				nextFramePolygons = player.getPolygons();
+				nextFrameModelHash = m.getHash();
+				nextFrameTrianglesCount = m.getTrianglesCount();
+				nextFrameVerticesCount = m.getVerticesCount();
+			} catch (Exception aioobe) {
+				trisX = null;
+			}
 		}
 	}
 }
