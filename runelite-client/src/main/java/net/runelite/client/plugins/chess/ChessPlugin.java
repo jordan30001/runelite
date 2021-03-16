@@ -525,11 +525,13 @@ public class ChessPlugin extends Plugin {
 		if (doMark) {
 			for (int y = 0; y < 10; y++) {// letters
 				for (int x = 0; x < 10; x++) {// numbers
-					if ((x == 0 || y == 0) || (x == 10 || y == 10)) {
+					if (config.debug() && (x < 1 || y < 1 || x > 8 || y > 8)) {
+						chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x, worldPoint.getRegionY() + y, client.getPlane(), WhatType(x, y), WhatColor(x, y), WhatLabel(x, y)));
+					} else if (config.debug() == false && (x >= 1 && x <= 8) && (y >= 1 && y <= 8)) {
 						chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x, worldPoint.getRegionY() + y, client.getPlane(), WhatType(x, y), WhatColor(x, y), WhatLabel(x, y)));
 					}
 					if (updateVisuals == false) {
-						if ((x >= 1 || x <= 9) && (y >= 1 && y <= 9)) {
+						if ((x >= 1 || x <= 8) && (y >= 1 && y <= 8)) {
 							List<Player> players = Stream.concat(Stream.of(client.getLocalPlayer()), client.getPlayers().stream()).filter(p -> ChessOverlay.chessPieceUsername.contains(p.getName()))
 									.collect(Collectors.toCollection(ArrayList::new));
 							for (int i = 0; i < players.size(); i++) {
