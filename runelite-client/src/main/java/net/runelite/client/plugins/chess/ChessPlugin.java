@@ -37,6 +37,7 @@ import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.*;
 import net.runelite.client.Notifier;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.EventBus;
@@ -113,6 +114,9 @@ public class ChessPlugin extends Plugin {
 
 	@Inject
 	private ChessOverlay overlay;
+	@Inject
+	@Getter(AccessLevel.PUBLIC)
+	private ClientThread clientThread;
 
 	// @Inject
 	// private ChatboxPanelManager chatboxPanelManager;
@@ -381,12 +385,13 @@ public class ChessPlugin extends Plugin {
 			localPoint = target.getLocalLocation();
 			configManager.setConfiguration("chess", "localtile", gson.toJson(localPoint));
 			worldPoint = WorldPoint.fromLocalInstance(client, localPoint);
-			markTile(target.getLocalLocation(), option.equals(MARK), option.equals(UNMARK), false);
+			markTile(target.getLocalLocation(), option.equals(MARK), false);
 		}
 	}
 
 	public void restartBoard() {
-		markTile(localPoint, true, false, false);
+		markTile(localPoint, false, true);
+		markTile(localPoint, true, false);
 	}
 
 	@Subscribe
@@ -477,14 +482,14 @@ public class ChessPlugin extends Plugin {
 
 	public <T extends TwitchRedemptionEvent> void queueTwitchRedemption(T event) {
 		synchronized (twitchRedemptionQueue) {
-			if(twitchRedemptionQueue.containsKey(event.getClass()) == false) {
+			if (twitchRedemptionQueue.containsKey(event.getClass()) == false) {
 				twitchRedemptionQueue.put((Class<TwitchRedemptionEvent>) event.getClass(), new ArrayBlockingQueue<>(10));
 			}
 		}
 		twitchRedemptionQueue.get(event.getClass()).add(event);
 	}
 
-	private void markTile(LocalPoint localPoint, boolean doMark, boolean doUnmark, boolean updateVisuals) {
+	private void markTile(LocalPoint localPoint, boolean doMark, boolean updateVisuals) {
 		if (localPoint == null) {
 			return;
 		}
@@ -492,15 +497,17 @@ public class ChessPlugin extends Plugin {
 		int regionId = worldPoint.getRegionID();
 
 		List<ChessMarkerPoint> chessMarkerPoints = new ArrayList<>(getPointsFromConfig());
-		if (updateVisuals || doUnmark)
+		if (updateVisuals || doMark == false)
 			chessMarkerPoints.clear();
 
 		List<ChessMarkerPoint> chessTiles = new ArrayList<>();
 
-		if (doUnmark == false) {
+		if (doMark) {
 			for (int y = 0; y < 10; y++) {// letters
 				for (int x = 0; x < 10; x++) {// numbers
-					chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x, worldPoint.getRegionY() + y, client.getPlane(), WhatType(x, y), WhatColor(x, y), WhatLabel(x, y)));
+					if ((x == 0 || y == 0) || (x == 10 || y == 10)) {
+						chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x, worldPoint.getRegionY() + y, client.getPlane(), WhatType(x, y), WhatColor(x, y), WhatLabel(x, y)));
+					}
 					if (updateVisuals == false) {
 						if ((x >= 1 || x <= 9) && (y >= 1 && y <= 9)) {
 							List<Player> players = Stream.concat(Stream.of(client.getLocalPlayer()), client.getPlayers().stream()).filter(p -> ChessOverlay.chessPieceUsername.contains(p.getName()))
@@ -549,8 +556,6 @@ public class ChessPlugin extends Plugin {
 		default:
 			return;
 		}
-
-		System.err.println(msg.toString());
 
 		if (("Twitch".equals(msg.getSender()) && twitchNames.contains(msg.getName().toLowerCase())) || (msg.getSender() == null && gameNames.contains(msg.getName().toLowerCase()))) {
 			/*

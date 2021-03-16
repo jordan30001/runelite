@@ -23,7 +23,7 @@ public class ChessboardColorChangeEvent extends TwitchRedemptionEvent {
 	private final String side;
 	@Getter(AccessLevel.PUBLIC)
 	private final String userInput;
-	
+
 	public ChessboardColorChangeEvent(ChessPlugin plugin, String side, String userInput) {
 		super(REPEATED_DELAY_TIME, ENDING_DELAY_TIME, new TwitchRedemptionInfo());
 		this.plugin = plugin;
