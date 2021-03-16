@@ -27,7 +27,7 @@ public final class Constants {
 		public static final String RESPONSE_MOD_RESTART_BOARD_END = "@%s -> The board was restarted";
 
 		public static final String MOD_SET_CHESS_BOARD_COLOR = "boardcolor";
-		public static final String RESPONSE_SET_CHESS_BOARD_COLOR_HELP = "@%s accepts hex color code in the form '#696969' or a color code from 'blade needs to choose a url for color codes'";
+		public static final String RESPONSE_SET_CHESS_BOARD_COLOR_HELP = "@%s black/white followed by a hex color code in the form '#696969' or a color code from 'blade needs to choose a url for color codes'";
 		public static final String RESPONSE_SET_CHESS_BOARD_COLOR = "@%s '%s' is not a valid color code, accepts hex color code in the form '#696969' or a color code from 'blade needs to choose a url for color codes'";
 
 		public static final String ALL_USER_COMMANDS = initUserCommands();

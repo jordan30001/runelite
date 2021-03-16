@@ -10,6 +10,9 @@ import java.util.TimerTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
 
+import lombok.AccessLevel;
+import lombok.Getter;
+
 public class Utils {
 
 	public static final Map<String, Color> COLOR_MAP = new HashMap<>();
@@ -94,11 +97,18 @@ public class Utils {
 	}
 
 	public static class FrameTimeLogger {
-		public static final FrameTimeLogger INSTANCE = new FrameTimeLogger();
+		private static final Map<String, FrameTimeLogger> loggers = new HashMap<>();
+
 		int samples = 100;
 		int currentFrame = 0;
 		int frameSum = 0;
 		int[] frameTimes = new int[samples];
+		@Getter(AccessLevel.PUBLIC)
+		String name;
+
+		public FrameTimeLogger(String name) {
+			this.name = name;
+		}
 
 		public int getFrameTimeAverage(int time) {
 			frameSum -= frameTimes[currentFrame]; /* subtract value falling off */
@@ -106,9 +116,18 @@ public class Utils {
 			frameTimes[currentFrame] = time; /* save new value so it can be subtracted later */
 			if (++currentFrame == samples) /* inc buffer index */
 				currentFrame = 0;
-
 			/* return average */
 			return (int) ((double) frameSum / samples);
+		}
+
+		public static FrameTimeLogger getInstance(String name) {
+			if (loggers.containsKey(name))
+				return loggers.get(name);
+			else {
+				FrameTimeLogger logger = new FrameTimeLogger(name);
+				loggers.put(name, logger);
+				return logger;
+			}
 		}
 	}
 

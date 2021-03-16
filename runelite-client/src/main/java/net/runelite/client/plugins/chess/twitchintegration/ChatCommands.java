@@ -33,6 +33,7 @@ import net.runelite.client.plugins.chess.data.ChessAscii;
 import net.runelite.client.plugins.chess.data.ChessEmotes;
 import net.runelite.client.plugins.chess.data.ChessMarkerPoint;
 import net.runelite.client.plugins.chess.data.ColorTileMarker;
+import net.runelite.client.plugins.chess.twitchintegration.events.ChessboardColorChangeEvent;
 import net.runelite.client.util.Text;
 
 public class ChatCommands {
@@ -40,8 +41,6 @@ public class ChatCommands {
 
 	@Getter(AccessLevel.PUBLIC)
 	private ChessPlugin plugin;
-	@Inject
-	private ClientThread clientThread;
 	@Inject
 	public Client client;
 
@@ -79,21 +78,24 @@ public class ChatCommands {
 					switch (splitInput[1]) {
 					case TwitchChat.MOD_RESTART_BOARD:
 						channelMessage.getTwitchChat().sendMessage(channelMessage.getChannel().getName(), String.format(TwitchChat.RESPONSE_MOD_RESTART_BOARD_START, channelMessage.getUser().getName()));
-						clientThread.invokeLater(() -> {
+						getPlugin().getClientThread().invokeLater(() -> {
 							plugin.restartBoard();
 							channelMessage.getTwitchChat().sendMessage(channelMessage.getChannel().getName(), String.format(TwitchChat.RESPONSE_MOD_RESTART_BOARD_END, channelMessage.getUser().getName()));
 						});
 						break;
 					case TwitchChat.MOD_SET_CHESS_BOARD_COLOR:
-						if (splitInput.length == 1) {
+						if (splitInput.length == 2 || splitInput.length == 3) {
 							messageToSend = String.format(TwitchChat.RESPONSE_SET_CHESS_BOARD_COLOR_HELP, channelMessage.getUser().getName());
-						} else {
-							String strColor = Arrays.stream(splitInput, 2, splitInput.length).collect(Collectors.joining(" "));
+						} else if(splitInput.length == 4){
+							String strColor = Arrays.stream(splitInput, 3, splitInput.length).collect(Collectors.joining(" "));
 							Color color = Utils.ColorFromString(strColor);
 							if (color == null) {
 								messageToSend = String.format(TwitchChat.RESPONSE_SET_CHESS_BOARD_COLOR, channelMessage.getUser().getName(), strColor);
+								break;
 							}
+							getPlugin().queueTwitchRedemption(new ChessboardColorChangeEvent(getPlugin(), splitInput[2] + "TileColor", strColor));
 						}
+						break;
 					case TwitchChat.USER_MOVE_PIECE1:
 					case TwitchChat.USER_MOVE_PIECE2:
 						if (ChessOverlay.chessPieceUsername.contains(channelMessage.getUser().getName()) == false) {
