@@ -123,6 +123,8 @@ public class ChessOverlay extends Overlay {
 	public Dimension render(Graphics2D graphics) {
 //		getCachedTileTextMap().clear();
 		try {
+			int endTimeRenderTiles = 0, endTimeGeneratePPTs = 0, endTimeGrabPPTs = 0, endTimeUpdatePPTs = 0, endTimeDrawPolys = 0;
+
 			long startTimeTotal = System.currentTimeMillis();
 			atom.set(getConfig().debugShowRandomPlayersCount());
 			BufferedImage image = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(), BufferedImage.TYPE_INT_ARGB);
@@ -135,55 +137,71 @@ public class ChessOverlay extends Overlay {
 
 			long startTimeRenderTiles = System.currentTimeMillis();
 			renderTiles(graphicsTemp, points);
-			int endTimeRenderTiles = (int) (System.currentTimeMillis() - startTimeRenderTiles);
-			/*
-			 * new HashSet<>(getPlayerPolygonsTris().keySet()).forEach(playerName -> {
-			 * boolean remove = true; for (Player p : client.getPlayers()) { if
-			 * (p.getName().equals(playerName)) { remove = false; break; } } if (remove)
-			 * getPlayerPolygonsTris().remove(playerName); });
-			 * 
-			 * long startTimeGeneratePPTs = System.currentTimeMillis(); // generate PPTs
-			 * getPlayers.get().filter(renderPlayer).forEach(ChessOverlay.this::generatePPTs
-			 * ); int endTimeGeneratePPTs = (int) (System.currentTimeMillis() -
-			 * startTimeGeneratePPTs); long startTimeGrabPPTs = System.currentTimeMillis();
-			 * // grab PPT data
-			 * getPlayerPolygonsTris().values().stream().sequential().forEach(
-			 * PlayerPolygonsTriangles::grabData); int endTimeGrabPPTs = (int)
-			 * (System.currentTimeMillis() - startTimeGrabPPTs); long startTimeUpdatePPTs =
-			 * System.currentTimeMillis(); // update PPTs if
-			 * (getConfig().debugUseMultithreading()) { mainThreadPool.submit(() ->
-			 * getPlayerPolygonsTris().values().parallelStream().forEach(ppt ->
-			 * updatePlayerPolygonsTriangles(ppt))).get(); } else {
-			 * getPlayerPolygonsTris().values().stream().forEach(ppt ->
-			 * updatePlayerPolygonsTriangles(ppt)); } int endTimeUpdatePPTs = (int)
-			 * (System.currentTimeMillis() - startTimeUpdatePPTs);
-			 * 
-			 * needsUpdate = false;
-			 * 
-			 * long startTimeDrawPolys = System.currentTimeMillis(); int[] dataBuffer =
-			 * ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
-			 * 
-			 * mainThreadPool.submit(() ->
-			 * getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> { if (ppt ==
-			 * null || ppt.trisX == null) return; Polygon[] polygons = ppt.polygons;
-			 * Triangle[] triangles = ppt.triangles;
-			 * 
-			 * for (int i = 0; i < polygons.length; i++) { final int ii = i; Triangle t =
-			 * triangles[i]; if (!(t.getA().getY() == 6 && t.getB().getY() == 6 &&
-			 * t.getC().getY() == 6)) { clearPolygon(dataBuffer, image.getWidth(),
-			 * image.getHeight(), polygons[ii]); } } })).get(); int endTimeDrawPolys = (int)
-			 * (System.currentTimeMillis() - startTimeDrawPolys);
-			 */
+			endTimeRenderTiles = (int) (System.currentTimeMillis() - startTimeRenderTiles);
+
+			if (getConfig().debug() == false) {
+
+				new HashSet<>(getPlayerPolygonsTris().keySet()).forEach(playerName -> {
+					boolean remove = true;
+					for (Player p : client.getPlayers()) {
+						if (p.getName().equals(playerName)) {
+							remove = false;
+							break;
+						}
+					}
+					if (remove)
+						getPlayerPolygonsTris().remove(playerName);
+				});
+
+				long startTimeGeneratePPTs = System.currentTimeMillis();
+				/* generate PPTs */
+				getPlayers.get().filter(renderPlayer).forEach(ChessOverlay.this::generatePPTs);
+				endTimeGeneratePPTs = (int) (System.currentTimeMillis() - startTimeGeneratePPTs);
+				long startTimeGrabPPTs = System.currentTimeMillis();
+				/* grab PPT data */
+				getPlayerPolygonsTris().values().stream().sequential().forEach(PlayerPolygonsTriangles::grabData);
+				endTimeGrabPPTs = (int) (System.currentTimeMillis() - startTimeGrabPPTs);
+				long startTimeUpdatePPTs = System.currentTimeMillis();
+				/* update PPTs */
+				if (getConfig().debugUseMultithreading()) {
+					mainThreadPool.submit(() -> getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> updatePlayerPolygonsTriangles(ppt))).get();
+				} else {
+					getPlayerPolygonsTris().values().stream().forEach(ppt -> updatePlayerPolygonsTriangles(ppt));
+				}
+				endTimeUpdatePPTs = (int) (System.currentTimeMillis() - startTimeUpdatePPTs);
+
+				needsUpdate = false;
+
+				long startTimeDrawPolys = System.currentTimeMillis();
+				int[] dataBuffer = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
+
+				mainThreadPool.submit(() -> getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> {
+					if (ppt == null || ppt.trisX == null)
+						return;
+					Polygon[] polygons = ppt.polygons;
+					Triangle[] triangles = ppt.triangles;
+
+					for (int i = 0; i < polygons.length; i++) {
+						final int ii = i;
+						Triangle t = triangles[i];
+						if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
+							clearPolygon(dataBuffer, image.getWidth(), image.getHeight(), polygons[ii]);
+						}
+					}
+				})).get();
+				endTimeDrawPolys = (int) (System.currentTimeMillis() - startTimeDrawPolys);
+			}
+
 			graphics.drawImage(image, 0, 0, null);
 			if (getConfig().debugShowFrameTimes()) {
 				//@formatter:off
 				clientUI.getFrame().setTitle(String.format("ATotal: %d, ARTiles: %d, AGenPPTs: %d, aGrabPPTs: %d, AUpdatePPTs: %d, AdrawPolys: %d",
 						Utils.FrameTimeLogger.getInstance("totalTime").getFrameTimeAverage((int) (System.currentTimeMillis() - startTimeTotal)),
-						Utils.FrameTimeLogger.getInstance("renderTiles").getFrameTimeAverage(endTimeRenderTiles),0,0,0,0/*,
+						Utils.FrameTimeLogger.getInstance("renderTiles").getFrameTimeAverage(endTimeRenderTiles),
 						Utils.FrameTimeLogger.getInstance("generatePPTs").getFrameTimeAverage(endTimeGeneratePPTs),
 						Utils.FrameTimeLogger.getInstance("grabPPTs").getFrameTimeAverage(endTimeGrabPPTs),
 						Utils.FrameTimeLogger.getInstance("updatePPTs").getFrameTimeAverage(endTimeUpdatePPTs),
-						Utils.FrameTimeLogger.getInstance("drawPolys").getFrameTimeAverage(endTimeDrawPolys)	*/					
+						Utils.FrameTimeLogger.getInstance("drawPolys").getFrameTimeAverage(endTimeDrawPolys)						
 						));
 				//@formatter:on
 			}
@@ -343,25 +361,25 @@ public class ChessOverlay extends Overlay {
 			graphics.setColor(originalColor);
 			graphics.fill(poly);
 		}
-		
-		/*
-		 * if (!Strings.isNullOrEmpty(label)) { CachedTileText cachedTileText =
-		 * getCachedTileTextMap().getOrDefault(label, null); if (cachedTileText == null)
-		 * { cachedTileText = new CachedTileText(label);
-		 * getCachedTileTextMap().put(label, cachedTileText); } Point canvasTextLocation
-		 * = Perspective.getCanvasTextLocation(client, graphics, lp, label, 0); if
-		 * (canvasTextLocation != null) { OverlayUtil.renderTextLocation(graphics,
-		 * canvasTextLocation, label, color); } }
-		 */
-		if (!Strings.isNullOrEmpty(label)) {
-			CachedTileText cachedTileText = getCachedTileTextMap().getOrDefault(label, null);
-			if (cachedTileText == null) {
-				cachedTileText = new CachedTileText(label);
-				getCachedTileTextMap().put(label, cachedTileText);
+
+		if (getConfig().debug()) {
+			if (!Strings.isNullOrEmpty(label)) {
+				Point canvasTextLocation = Perspective.getCanvasTextLocation(client, graphics, lp, label, 0);
+				if (canvasTextLocation != null) {
+					OverlayUtil.renderTextLocation(graphics, canvasTextLocation, label, color);
+				}
 			}
-			Point canvasTextLocation = cachedTileText.getCanvasTextLocation(client, graphics, lp, label, 0);
-			if (canvasTextLocation != null) {
-				cachedTileText.renderTextLocation(graphics, canvasTextLocation, label, color);
+		} else {
+			if (!Strings.isNullOrEmpty(label)) {
+				CachedTileText cachedTileText = getCachedTileTextMap().getOrDefault(label, null);
+				if (cachedTileText == null) {
+					cachedTileText = new CachedTileText(label);
+					getCachedTileTextMap().put(label, cachedTileText);
+				}
+				Point canvasTextLocation = cachedTileText.getCanvasTextLocation(client, graphics, lp, label, 0);
+				if (canvasTextLocation != null) {
+					cachedTileText.renderTextLocation(graphics, canvasTextLocation, label, color);
+				}
 			}
 		}
 	}
@@ -422,8 +440,10 @@ public class ChessOverlay extends Overlay {
 				return null;
 			}
 
-			FontMetrics fm = graphics.getFontMetrics();
-			bounds = fm.getStringBounds(text, graphics);
+			if (bounds == null) {
+				FontMetrics fm = graphics.getFontMetrics();
+				bounds = fm.getStringBounds(text, graphics);
+			}
 			if (textImage == null || ((int) bounds.getWidth()) != textImage.getWidth() || ((int) bounds.getHeight()) != textImage.getHeight()) {
 				textImage = new BufferedImage((int) bounds.getWidth(), (int) bounds.getHeight(), BufferedImage.TYPE_INT_ARGB);
 				isDrawn = false;
