@@ -220,13 +220,10 @@ public class ChessPlugin extends Plugin {
 			return;
 		}
 
-		for (int regionId : regions) {
-			// load points for region
-			log.debug("Loading points for region {}", regionId);
-			Collection<ChessMarkerPoint> regionPoints = getPointsFromConfig();
-			Collection<ColorTileMarker> colorTileMarkers = translateToColorTileMarker(regionPoints);
-			points.addAll(colorTileMarkers);
-		}
+		// load points for region
+		Collection<ChessMarkerPoint> regionPoints = getPointsFromConfig();
+		Collection<ColorTileMarker> colorTileMarkers = translateToColorTileMarker(regionPoints);
+		points.addAll(colorTileMarkers);
 	}
 
 	private Collection<ChessMarkerPoint> getPointsFromConfig() {
@@ -251,6 +248,20 @@ public class ChessPlugin extends Plugin {
 				}).collect(Collectors.toList());
 	}
 
+//	private Collection<ColorTileMarker> translateToColorTileMarker(Collection<ChessMarkerPoint> points) {
+//		if (points.isEmpty()) {
+//			return Collections.emptyList();
+//		}
+//
+//		return points.stream().map(point -> 
+//		new ColorTileMarker(WorldPoint.fromRegion(point.getRegionId(), point.getRegionX(), point.getRegionY(), point.getZ()),
+//				point.getType(), point.getColor(), point.getLabel(), true))
+//				.flatMap(colorTile -> {
+//					final Collection<WorldPoint> localWorldPoints = WorldPoint.toLocalInstance(client, colorTile.getWorldPoint());
+//					return localWorldPoints.stream().map(wp -> new ColorTileMarker(wp, colorTile.getType(), colorTile.getColor(), colorTile.getLabel(), colorTile.isTemporary()));
+//				}).collect(Collectors.toList());
+//	}
+
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged event) {
 		switch (event.getGameState()) {
@@ -263,11 +274,12 @@ public class ChessPlugin extends Plugin {
 		case CONNECTION_LOST:
 		case HOPPING:
 			overlay.getPlayerPolygonsTris().clear();
-			overlay.setNeedsUpdate(true);
+			overlay.allowRendering = false;
 			return;
 		case LOGGED_IN:
-			overlay.setNeedsUpdate(true);
-			break;
+			overlay.allowRendering = true;
+			overlay.getPlayerPolygonsTris().clear();
+			return;
 		}
 
 		// map region has just been updated
@@ -370,12 +382,7 @@ public class ChessPlugin extends Plugin {
 				return;
 			}
 
-			final WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, selectedSceneTile.getLocalLocation());
-			final int regionId = worldPoint.getRegionID();
-			// SW_Chess_Tile = new ChessMarkerPoint(regionId, worldPoint.getRegionX(),
-			// worldPoint.getRegionY(),
-			// client.getPlane(), null, null);
-			final boolean exists = getPointsFromConfig().size() > 0;// .contains(SW_Chess_Tile);
+			final boolean exists = getPointsFromConfig().size() > 0;
 
 			MenuEntry[] menuEntries = client.getMenuEntries();
 			menuEntries = Arrays.copyOf(menuEntries, menuEntries.length + 1);
@@ -402,6 +409,7 @@ public class ChessPlugin extends Plugin {
 
 		final String option = event.getMenuOption();
 		if (option.equals(MARK) || option.equals(UNMARK)) {
+			//TODO: double check marking/unmarking and the chessboard not drawing where it should 
 			localPoint = target.getLocalLocation();
 			configManager.setConfiguration("chess", "localtile", gson.toJson(localPoint));
 			worldPoint = WorldPoint.fromLocalInstance(client, localPoint);
@@ -421,7 +429,6 @@ public class ChessPlugin extends Plugin {
 		if (config.debugCatJam() && (twitchRedemptionQueue.get(ChessboardDisco.class) == null || twitchRedemptionQueue.get(ChessboardDisco.class).size() == 0)) {
 			queueTwitchRedemption(new ChessboardDisco(this));
 		}
-		overlay.setNeedsUpdate(true);
 		// priority overhead text queue
 
 		OverheadTextInfo priorityInfo = priorityOverheadTextQueue.peek();
@@ -466,7 +473,6 @@ public class ChessPlugin extends Plugin {
 
 		while (it.hasNext()) {
 			Entry<Class<TwitchRedemptionEvent>, BlockingQueue<TwitchRedemptionEvent>> e = it.next();
-			// Class<TwitchRedemptionEvent> redemption = e.getKey();
 			BlockingQueue<TwitchRedemptionEvent> queue = e.getValue();
 			TwitchRedemptionEvent redemption = queue.peek();
 			if (redemption == null)
@@ -500,6 +506,7 @@ public class ChessPlugin extends Plugin {
 			overheadTextQueue.offer(new OverheadTextInfo(text, timeToDisplay));
 	}
 
+	@SuppressWarnings("unchecked")
 	public <T extends TwitchRedemptionEvent> void queueTwitchRedemption(T event) {
 		synchronized (twitchRedemptionQueue) {
 			if (twitchRedemptionQueue.containsKey(event.getClass()) == false) {
@@ -525,11 +532,7 @@ public class ChessPlugin extends Plugin {
 		if (doMark) {
 			for (int y = 0; y < 10; y++) {// letters
 				for (int x = 0; x < 10; x++) {// numbers
-					if (config.debug() && (x < 1 || y < 1 || x > 8 || y > 8)) {
-						chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x, worldPoint.getRegionY() + y, client.getPlane(), WhatType(x, y), WhatColor(x, y), WhatLabel(x, y)));
-					} else if (config.debug() == false && (x >= 1 && x <= 8) && (y >= 1 && y <= 8)) {
-						chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x, worldPoint.getRegionY() + y, client.getPlane(), WhatType(x, y), WhatColor(x, y), WhatLabel(x, y)));
-					}
+					chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x, worldPoint.getRegionY() + y, client.getPlane(), WhatType(x, y), WhatColor(x, y), WhatLabel(x, y)));
 					if (updateVisuals == false) {
 						if ((x >= 1 || x <= 8) && (y >= 1 && y <= 8)) {
 							List<Player> players = Stream.concat(Stream.of(client.getLocalPlayer()), client.getPlayers().stream()).filter(p -> ChessOverlay.chessPieceUsername.contains(p.getName()))
@@ -578,58 +581,7 @@ public class ChessPlugin extends Plugin {
 		default:
 			return;
 		}
-
-		if (("Twitch".equals(msg.getSender()) && twitchNames.contains(msg.getName().toLowerCase())) || (msg.getSender() == null && gameNames.contains(msg.getName().toLowerCase()))) {
-			/*
-			 * 
-			 * ChatCommands.onChatMessage(msg);
-			 * 
-			 * if ("test".equals(sanitisedInput)) { chessHandler.initBaseBoard(); return; }
-			 * 
-			 * Matcher m = movePattern.matcher(sanitisedInput);
-			 * 
-			 * if (m.find() == false) { //
-			 * queueOverheadText(String.format("Invalid move %s", //
-			 * ChessEmotes.ThreeHead.toHTMLString(modIconsStart)), 6000, true); return; }
-			 * 
-			 * String moveFrom = m.group(1).toUpperCase(); String moveTo =
-			 * m.group(2).toUpperCase(); int[] move = ChessHandler.getXYOffset(moveFrom,
-			 * moveTo); Either<Exception, Position> moveResult = chessHandler.tryMove(move);
-			 * if (moveResult.isRight()) { ChessMarkerPoint cmp = new
-			 * ChessMarkerPoint(worldPoint.getRegionID(), worldPoint.getRegionX() + move[1]
-			 * + 1, worldPoint.getRegionY() + move[0] + 1, client.getPlane(), null,
-			 * Color.RED, null); ChessMarkerPoint cmp2 = new
-			 * ChessMarkerPoint(worldPoint.getRegionID(), worldPoint.getRegionX() + move[3]
-			 * + 1, worldPoint.getRegionY() + move[2] + 1, client.getPlane(), null,
-			 * Color.GREEN, null);
-			 * 
-			 * while (points.size() >= 900) { points.remove(points.size() - 1); }
-			 * 
-			 * Stream.of(cmp, cmp2).map(point -> new
-			 * ColorTileMarker(WorldPoint.fromRegion(point.getRegionId(),
-			 * point.getRegionX(), point.getRegionY(), point.getZ()), point.getType(),
-			 * point.getColor(), point.getLabel())) .flatMap(colorTile -> { final
-			 * Collection<WorldPoint> localWorldPoints = WorldPoint.toLocalInstance(client,
-			 * colorTile.getWorldPoint()); return localWorldPoints.stream().map(wp -> new
-			 * ColorTileMarker(wp, colorTile.getType(), colorTile.getColor(),
-			 * colorTile.getLabel())); }).forEach(ctm -> points.add(ctm));
-			 * 
-			 * if (chessHandler.getHistory().parent != null) { Position position =
-			 * chessHandler.getHistory().parent.relatedPosition; char a =
-			 * position.getPieceAt(new BoardCell(move[0], move[1])).toFEN();
-			 * System.err.println(String.format("Move: %s From: %s, To: %s",
-			 * ChessAscii.fromFEN(a).ascii, moveFrom, moveTo)); }
-			 * 
-			 * // twitchEventManager.sendMessage(String.format("Move: %s From: %s, To: %s",
-			 * // ChessAscii.fromFEN(a).ascii, moveFrom, moveTo));
-			 * queueOverheadText(String.format("%s%s", moveFrom, moveTo), 6000, true);
-			 * 
-			 * } else { twitchHandler.sendMessage(String.
-			 * format("From: %s, To: %s is a Invalid move %s", moveFrom, moveTo,
-			 * ChessEmotes.ThreeHead.trigger));
-			 * queueOverheadText(String.format("Invalid move %s",
-			 * ChessEmotes.ThreeHead.toHTMLString(modIconsStart)), 6000, true); }
-			 */}
+		chatCommands.onMessageEvent(msg);
 	}
 
 	private void loadEmojiIcons() {
@@ -650,7 +602,7 @@ public class ChessPlugin extends Plugin {
 				final IndexedSprite sprite = ImageUtil.getImageIndexedSprite(image, client);
 				newModIcons[modIconsStart + i] = sprite;
 			} catch (Exception ex) {
-				// log.warn("Failed to load the sprite for emoji " + emoji, ex);
+				log.warn("Failed to load the sprite for emoji " + emoji, ex);
 			}
 		}
 
@@ -659,7 +611,7 @@ public class ChessPlugin extends Plugin {
 
 	}
 
-	public ChessMarkerPointType WhatType(int x, int y) {
+	public static final  ChessMarkerPointType WhatType(int x, int y) {
 		if (x == 0 || x == 9)
 			return ChessMarkerPointType.FULL_ALPHA;
 		else if (y == 0 || y == 9)
@@ -672,7 +624,7 @@ public class ChessPlugin extends Plugin {
 		}
 	}
 
-	public Color WhatColor(int x, int y) {
+	public static final  Color WhatColor(int x, int y) {
 		if (x == 0 || x == 9)
 			return new Color(0, 0, 0, 0);
 		else if (y == 0 || y == 9)
@@ -685,7 +637,7 @@ public class ChessPlugin extends Plugin {
 		}
 	}
 
-	public String WhatLabel(int x, int y) {
+	public static final String WhatLabel(int x, int y) {
 		if (y == 0 || y == 9) {
 			if (x == 9) {
 				return null;

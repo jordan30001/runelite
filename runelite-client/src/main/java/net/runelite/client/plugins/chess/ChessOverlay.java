@@ -27,17 +27,13 @@ package net.runelite.client.plugins.chess;
 
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Polygon;
 import java.awt.Rectangle;
 import java.awt.Stroke;
-import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -45,18 +41,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.imageio.ImageIO;
 import javax.inject.Inject;
 
 import com.google.common.base.Strings;
@@ -81,7 +73,6 @@ import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayUtil;
-import net.runelite.client.util.ColorUtil;
 
 public class ChessOverlay extends Overlay {
 	public ForkJoinPool mainThreadPool = new ForkJoinPool(4);
@@ -97,15 +88,13 @@ public class ChessOverlay extends Overlay {
 	private final ChessPlugin plugin;
 	public static Set<String> chessPieceUsername;
 	public static HashMap<String, Character> usernameToType;
-	@Setter(AccessLevel.PUBLIC)
-	private volatile boolean needsUpdate = true;
 	@Getter
 	private Map<String, PlayerPolygonsTriangles> playerPolygonsTris;
 	private AtomicInteger atom = new AtomicInteger(10);
 	@Inject
 	private ClientUI clientUI;
-	@Getter(AccessLevel.PRIVATE)
-	private Map<String, CachedTileText> cachedTileTextMap;
+
+	public boolean allowRendering;
 
 	@Inject
 	public ChessOverlay(Client client, ChessPlugin plugin, ChessConfig config) {
@@ -116,12 +105,11 @@ public class ChessOverlay extends Overlay {
 		this.config = config;
 		this.plugin = plugin;
 		playerPolygonsTris = new HashMap<>();
-		cachedTileTextMap = new HashMap<>();
 	}
 
 	@Override
 	public Dimension render(Graphics2D graphics) {
-//		getCachedTileTextMap().clear();
+		if(allowRendering == false) return null;
 		try {
 			int endTimeRenderTiles = 0, endTimeGeneratePPTs = 0, endTimeGrabPPTs = 0, endTimeUpdatePPTs = 0, endTimeDrawPolys = 0;
 
@@ -139,58 +127,53 @@ public class ChessOverlay extends Overlay {
 			renderTiles(graphicsTemp, points);
 			endTimeRenderTiles = (int) (System.currentTimeMillis() - startTimeRenderTiles);
 
-			if (getConfig().debug() == false) {
-
-				new HashSet<>(getPlayerPolygonsTris().keySet()).forEach(playerName -> {
-					boolean remove = true;
-					for (Player p : client.getPlayers()) {
-						if (p.getName().equals(playerName)) {
-							remove = false;
-							break;
-						}
+			new HashSet<>(getPlayerPolygonsTris().keySet()).forEach(playerName -> {
+				boolean remove = true;
+				for (Player p : client.getPlayers()) {
+					if (p.getName().equals(playerName)) {
+						remove = false;
+						break;
 					}
-					if (remove)
-						getPlayerPolygonsTris().remove(playerName);
-				});
-
-				long startTimeGeneratePPTs = System.currentTimeMillis();
-				/* generate PPTs */
-				getPlayers.get().filter(renderPlayer).forEach(ChessOverlay.this::generatePPTs);
-				endTimeGeneratePPTs = (int) (System.currentTimeMillis() - startTimeGeneratePPTs);
-				long startTimeGrabPPTs = System.currentTimeMillis();
-				/* grab PPT data */
-				getPlayerPolygonsTris().values().stream().sequential().forEach(PlayerPolygonsTriangles::grabData);
-				endTimeGrabPPTs = (int) (System.currentTimeMillis() - startTimeGrabPPTs);
-				long startTimeUpdatePPTs = System.currentTimeMillis();
-				/* update PPTs */
-				if (getConfig().debugUseMultithreading()) {
-					mainThreadPool.submit(() -> getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> updatePlayerPolygonsTriangles(ppt))).get();
-				} else {
-					getPlayerPolygonsTris().values().stream().forEach(ppt -> updatePlayerPolygonsTriangles(ppt));
 				}
-				endTimeUpdatePPTs = (int) (System.currentTimeMillis() - startTimeUpdatePPTs);
+				if (remove)
+					getPlayerPolygonsTris().remove(playerName);
+			});
 
-				needsUpdate = false;
-
-				long startTimeDrawPolys = System.currentTimeMillis();
-				int[] dataBuffer = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
-
-				mainThreadPool.submit(() -> getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> {
-					if (ppt == null || ppt.trisX == null)
-						return;
-					Polygon[] polygons = ppt.polygons;
-					Triangle[] triangles = ppt.triangles;
-
-					for (int i = 0; i < polygons.length; i++) {
-						final int ii = i;
-						Triangle t = triangles[i];
-						if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
-							clearPolygon(dataBuffer, image.getWidth(), image.getHeight(), polygons[ii]);
-						}
-					}
-				})).get();
-				endTimeDrawPolys = (int) (System.currentTimeMillis() - startTimeDrawPolys);
+			long startTimeGeneratePPTs = System.currentTimeMillis();
+			/* generate PPTs */
+			getPlayers.get().filter(renderPlayer).forEach(ChessOverlay.this::generatePPTs);
+			endTimeGeneratePPTs = (int) (System.currentTimeMillis() - startTimeGeneratePPTs);
+			long startTimeGrabPPTs = System.currentTimeMillis();
+			/* grab PPT data */
+			getPlayerPolygonsTris().values().stream().sequential().forEach(PlayerPolygonsTriangles::grabData);
+			endTimeGrabPPTs = (int) (System.currentTimeMillis() - startTimeGrabPPTs);
+			long startTimeUpdatePPTs = System.currentTimeMillis();
+			/* update PPTs */
+			if (getConfig().debugUseMultithreading()) {
+				mainThreadPool.submit(() -> getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> updatePlayerPolygonsTriangles(ppt))).get();
+			} else {
+				getPlayerPolygonsTris().values().stream().forEach(ppt -> updatePlayerPolygonsTriangles(ppt));
 			}
+			endTimeUpdatePPTs = (int) (System.currentTimeMillis() - startTimeUpdatePPTs);
+
+			long startTimeDrawPolys = System.currentTimeMillis();
+			int[] dataBuffer = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
+
+			mainThreadPool.submit(() -> getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> {
+				if (ppt == null || ppt.trisX == null)
+					return;
+				Polygon[] polygons = ppt.polygons;
+				Triangle[] triangles = ppt.triangles;
+
+				for (int i = 0; i < polygons.length; i++) {
+					final int ii = i;
+					Triangle t = triangles[i];
+					if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
+						clearPolygon(dataBuffer, image.getWidth(), image.getHeight(), polygons[ii]);
+					}
+				}
+			})).get();
+			endTimeDrawPolys = (int) (System.currentTimeMillis() - startTimeDrawPolys);
 
 			graphics.drawImage(image, 0, 0, null);
 			if (getConfig().debugShowFrameTimes()) {
@@ -275,18 +258,6 @@ public class ChessOverlay extends Overlay {
 		}
 	}
 
-	private void clearPolygon(BufferedImage bi, int width, int height, Polygon p) {
-		Rectangle bounds = p.getBounds();
-
-		for (double y = bounds.getMinY(); y < bounds.getMaxY(); y++) {
-			for (double x = bounds.getMinX(); x < bounds.getMaxX(); x++) {
-				if (p.contains(x, y) && x >= 0 && x < client.getCanvasWidth() && y >= 0 && y < client.getCanvasHeight()) {
-					bi.setRGB((int) x, (int) y, 0);
-				}
-			}
-		}
-	}
-
 	private void clearPolygon(int[] dataBuffer, int width, int height, Polygon p) {
 		Rectangle bounds = p.getBounds();
 
@@ -362,95 +333,11 @@ public class ChessOverlay extends Overlay {
 			graphics.fill(poly);
 		}
 
-		if (getConfig().debug()) {
-			if (!Strings.isNullOrEmpty(label)) {
-				Point canvasTextLocation = Perspective.getCanvasTextLocation(client, graphics, lp, label, 0);
-				if (canvasTextLocation != null) {
-					OverlayUtil.renderTextLocation(graphics, canvasTextLocation, label, color);
-				}
+		if (!Strings.isNullOrEmpty(label)) {
+			Point canvasTextLocation = Perspective.getCanvasTextLocation(client, graphics, lp, label, 0);
+			if (canvasTextLocation != null) {
+				OverlayUtil.renderTextLocation(graphics, canvasTextLocation, label, color);
 			}
-		} else {
-			if (!Strings.isNullOrEmpty(label)) {
-				CachedTileText cachedTileText = getCachedTileTextMap().getOrDefault(label, null);
-				if (cachedTileText == null) {
-					cachedTileText = new CachedTileText(label);
-					getCachedTileTextMap().put(label, cachedTileText);
-				}
-				Point canvasTextLocation = cachedTileText.getCanvasTextLocation(client, graphics, lp, label, 0);
-				if (canvasTextLocation != null) {
-					cachedTileText.renderTextLocation(graphics, canvasTextLocation, label, color);
-				}
-			}
-		}
-	}
-
-	private static class CachedTileText {
-		private String text;
-		private BufferedImage textImage;
-		private Rectangle2D bounds;
-		private boolean isDrawn;
-
-		public CachedTileText(String label) {
-			this.text = label;
-		}
-
-		public void renderTextLocation(Graphics2D graphics, Point txtLoc, String text, Color color) {
-			if (Strings.isNullOrEmpty(text)) {
-				return;
-			}
-
-			if (isDrawn == false) {
-				Graphics2D g2d = textImage.createGraphics();
-				g2d.setFont(graphics.getFont());
-				int x = txtLoc.getX();
-				int y = txtLoc.getY();
-
-				g2d.setColor(Color.BLACK);
-				g2d.drawString(text, 0, textImage.getHeight());
-
-				g2d.setColor(ColorUtil.colorWithAlpha(color, 0xFF));
-				g2d.drawString(text, 0, textImage.getHeight());
-//				try {
-//					//ImageIO.write(textImage, "png", new File("N:\\" + text + ".png"));
-//				} catch (IOException e) {
-//					// TODO Auto-generated catch block
-//					e.printStackTrace();
-//				}
-				g2d.dispose();
-				graphics.drawImage(textImage, x + 1, y + 1, null);
-				isDrawn = true;
-			} else {
-				int x = txtLoc.getX();
-				int y = txtLoc.getY();
-
-				graphics.drawImage(textImage, x + 1, y + 1, null);
-			}
-		}
-
-		public Point getCanvasTextLocation(@Nonnull Client client, @Nonnull Graphics2D graphics, @Nonnull LocalPoint localLocation, @Nullable String text, int zOffset) {
-			if (text == null) {
-				return null;
-			}
-
-			int plane = client.getPlane();
-
-			Point p = Perspective.localToCanvas(client, localLocation, plane, zOffset);
-
-			if (p == null) {
-				return null;
-			}
-
-			if (bounds == null) {
-				FontMetrics fm = graphics.getFontMetrics();
-				bounds = fm.getStringBounds(text, graphics);
-			}
-			if (textImage == null || ((int) bounds.getWidth()) != textImage.getWidth() || ((int) bounds.getHeight()) != textImage.getHeight()) {
-				textImage = new BufferedImage((int) bounds.getWidth(), (int) bounds.getHeight(), BufferedImage.TYPE_INT_ARGB);
-				isDrawn = false;
-			}
-			int xOffset = p.getX() - (int) (bounds.getWidth() / 2);
-
-			return new Point(xOffset, p.getY());
 		}
 	}
 
