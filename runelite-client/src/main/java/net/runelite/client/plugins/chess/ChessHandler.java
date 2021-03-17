@@ -39,6 +39,7 @@ public class ChessHandler {
 				this.position.board.values()[x][y] = null;
 			}
 		}
+		this.position = Position.fromFEN(this.position.toFEN()).right();
 	}
 
 	public void initBaseBoard() {
