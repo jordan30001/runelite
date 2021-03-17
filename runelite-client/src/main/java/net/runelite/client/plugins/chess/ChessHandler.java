@@ -34,7 +34,6 @@ public class ChessHandler {
 		this.position = null;
 		this.startupBoard = new Board(new Piece[8][8]);
 		this.history = null;
-		initBaseBoard();
 	}
 
 	public void initBaseBoard() {
