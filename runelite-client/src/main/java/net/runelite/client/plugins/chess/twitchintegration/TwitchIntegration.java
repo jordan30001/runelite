@@ -38,7 +38,6 @@ import net.runelite.client.plugins.chess.ChessPlugin;
 @Slf4j
 public class TwitchIntegration {
 	private TwitchClient twitchClient;
-	private TwitchPubSub twitchPubSub;
 	private TwitchHelix twitchHelix;
 
 	private String channelID;
@@ -159,6 +158,12 @@ public class TwitchIntegration {
 			System.err.println("not sent");
 		}
 
+	}
+
+	public void shutdown() {
+		twitchClient.getChat().close();
+		twitchClient.getPubSub().close();
+		twitchClient.close();
 	}
 
 }
