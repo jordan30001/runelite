@@ -109,7 +109,8 @@ public class ChessOverlay extends Overlay {
 
 	@Override
 	public Dimension render(Graphics2D graphics) {
-		if(allowRendering == false) return null;
+		if (allowRendering == false)
+			return null;
 		try {
 			int endTimeRenderTiles = 0, endTimeGeneratePPTs = 0, endTimeGrabPPTs = 0, endTimeUpdatePPTs = 0, endTimeDrawPolys = 0;
 
@@ -239,19 +240,24 @@ public class ChessOverlay extends Overlay {
 
 			Color tileColor = null;
 			ChessMarkerPointType type = point.getType();
-			switch (type) {
-			case BLACK:
-				tileColor = getConfig().blackTileColor();
-				break;
-			case WHITE:
-				tileColor = getConfig().whiteTileColor();
-				break;
-			case FULL_ALPHA:
-				tileColor = Constants.FULL_ALPHA;
-				break;
-			default:
+			if (type != null) {
+				switch (type) {
+				case BLACK:
+					tileColor = getConfig().blackTileColor();
+					break;
+				case WHITE:
+					tileColor = getConfig().whiteTileColor();
+					break;
+				case FULL_ALPHA:
+					tileColor = Constants.FULL_ALPHA;
+					break;
+				default:
+					tileColor = point.getColor();
+					break;
+				}
+			}
+			else {
 				tileColor = point.getColor();
-				break;
 			}
 
 			drawTile((Graphics2D) g, worldPoint, tileColor, point.getLabel());

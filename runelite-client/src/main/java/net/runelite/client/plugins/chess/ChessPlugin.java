@@ -98,6 +98,7 @@ public class ChessPlugin extends Plugin {
 	private final List<ColorTileMarker> points = new ArrayList<>();
 
 	@Inject
+	@Getter(AccessLevel.PUBLIC)
 	public Client client;
 
 	@Inject
@@ -169,6 +170,7 @@ public class ChessPlugin extends Plugin {
 	@Override
 	protected void shutDown() throws Exception {
 		overlayManager.remove(overlay);
+		twitchHandler.shutdown();
 		points.clear();
 
 	}
@@ -221,26 +223,12 @@ public class ChessPlugin extends Plugin {
 			return Collections.emptyList();
 		}
 
-		return points.stream().map(point -> new ColorTileMarker(WorldPoint.fromRegion(point.getRegionId(), point.getRegionX(), point.getRegionY(), point.getZ()), point.getType(), point.getColor(), point.getLabel(), true))
+		return points.stream().map(point -> new ColorTileMarker(WorldPoint.fromRegion(point.getRegionId(), point.getRegionX(), point.getRegionY(), point.getZ()), point.getType(), point.getColor(), point.getLabel(), false))
 				.flatMap(colorTile -> {
 					final Collection<WorldPoint> localWorldPoints = WorldPoint.toLocalInstance(client, colorTile.getWorldPoint());
 					return localWorldPoints.stream().map(wp -> new ColorTileMarker(wp, colorTile.getType(), colorTile.getColor(), colorTile.getLabel(), colorTile.isTemporary()));
 				}).collect(Collectors.toList());
 	}
-
-//	private Collection<ColorTileMarker> translateToColorTileMarker(Collection<ChessMarkerPoint> points) {
-//		if (points.isEmpty()) {
-//			return Collections.emptyList();
-//		}
-//
-//		return points.stream().map(point -> 
-//		new ColorTileMarker(WorldPoint.fromRegion(point.getRegionId(), point.getRegionX(), point.getRegionY(), point.getZ()),
-//				point.getType(), point.getColor(), point.getLabel(), true))
-//				.flatMap(colorTile -> {
-//					final Collection<WorldPoint> localWorldPoints = WorldPoint.toLocalInstance(client, colorTile.getWorldPoint());
-//					return localWorldPoints.stream().map(wp -> new ColorTileMarker(wp, colorTile.getType(), colorTile.getColor(), colorTile.getLabel(), colorTile.isTemporary()));
-//				}).collect(Collectors.toList());
-//	}
 
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged event) {
@@ -389,7 +377,8 @@ public class ChessPlugin extends Plugin {
 
 		final String option = event.getMenuOption();
 		if (option.equals(MARK) || option.equals(UNMARK)) {
-			//TODO: double check marking/unmarking and the chessboard not drawing where it should 
+			// TODO: double check marking/unmarking and the chessboard not drawing where it
+			// should
 			localPoint = target.getLocalLocation();
 			configManager.setConfiguration("chess", "localtile", gson.toJson(localPoint));
 			worldPoint = WorldPoint.fromLocalInstance(client, localPoint);
@@ -400,6 +389,7 @@ public class ChessPlugin extends Plugin {
 	public void restartBoard() {
 		markTile(localPoint, false, true);
 		markTile(localPoint, true, false);
+		chessHandler.reset();
 	}
 
 	@Subscribe
@@ -591,7 +581,7 @@ public class ChessPlugin extends Plugin {
 
 	}
 
-	public static final  ChessMarkerPointType WhatType(int x, int y) {
+	public static final ChessMarkerPointType WhatType(int x, int y) {
 		if (x == 0 || x == 9)
 			return ChessMarkerPointType.FULL_ALPHA;
 		else if (y == 0 || y == 9)
@@ -604,7 +594,7 @@ public class ChessPlugin extends Plugin {
 		}
 	}
 
-	public static final  Color WhatColor(int x, int y) {
+	public final Color WhatColor(int x, int y) {
 		if (x == 0 || x == 9)
 			return new Color(0, 0, 0, 0);
 		else if (y == 0 || y == 9)

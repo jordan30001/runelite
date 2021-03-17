@@ -34,6 +34,7 @@ public class ChessHandler {
 		this.position = null;
 		this.startupBoard = new Board(new Piece[8][8]);
 		this.history = null;
+		initBaseBoard();
 	}
 
 	public void initBaseBoard() {
@@ -48,9 +49,10 @@ public class ChessHandler {
 		}
 		this.startupBoard.values()[x][y] = Piece.fromFEN(piece);
 	}
-	
+
 	public Either<Exception, Position> tryMove(int[] iMove) {
-		if(history == null) history = ChessHistoryNode.rootNode(position, "start", "").right();
+		if (history == null)
+			history = ChessHistoryNode.rootNode(position, "start", "").right();
 		BoardCell from = new BoardCell(iMove[0], iMove[1]);
 		BoardCell to = new BoardCell(iMove[2], iMove[3]);
 		Move move = new Move(from, to);
@@ -63,8 +65,10 @@ public class ChessHandler {
 		}
 		return positionMove;
 	}
-	
+
 	public static final int[] getXYOffset(String sFrom, String sTo) {
-		return new int[] {Integer.parseInt(sFrom.substring(1)) - 1, RANK.indexOf(sFrom.charAt(0)), Integer.parseInt(sTo.substring(1)) - 1, RANK.indexOf(sTo.charAt(0))};
+		sFrom = sFrom.toUpperCase();
+		sTo = sTo.toUpperCase();
+		return new int[] { Integer.parseInt(sFrom.substring(1)) - 1, RANK.indexOf(sFrom.charAt(0)), Integer.parseInt(sTo.substring(1)) - 1, RANK.indexOf(sTo.charAt(0)) };
 	}
 }
