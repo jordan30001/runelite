@@ -18,7 +18,6 @@ public class ChessHandler {
 	private ChessPlugin plugin;
 	private ChessOverlay overlay;
 	private Position position;
-	private Board startupBoard;
 	private String[][] pieceUsernames;
 	@Getter(AccessLevel.PUBLIC)
 	private ChessHistoryNode history;
@@ -32,14 +31,7 @@ public class ChessHandler {
 
 	public void reset() {
 		this.history = null;
-		this.startupBoard = new Board(new Piece[8][8]);
 		this.position = Position.fromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").right();
-		for(int y = 0; y < 8; y++) {
-			for(int x = 0; x < 8; x++) {
-				this.position.board.values()[x][y] = null;
-			}
-		}
-		this.position = Position.fromFEN(this.position.toFEN()).right();
 	}
 
 	public void initBaseBoard() {
@@ -48,10 +40,6 @@ public class ChessHandler {
 	}
 
 	public void initPiece(int x, int y, char piece) {
-		if (startupBoard == null) {
-			this.startupBoard = new Board(new Piece[8][8]);
-			this.pieceUsernames = new String[8][8];
-		}
 		this.position.board.values()[x][y] = Piece.fromFEN(piece);
 		this.position = Position.fromFEN(this.position.board.toFEN()).right();
 	}
