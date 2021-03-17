@@ -520,6 +520,12 @@ public class ChessPlugin extends Plugin {
 		List<ChessMarkerPoint> chessTiles = new ArrayList<>();
 
 		if (doMark) {
+			if (updateVisuals == false) {
+				chessHandler.reset();
+			}
+			StringBuilder FENString = new StringBuilder();
+			int blankTilesCount = 0;
+			int currentCount = 0;
 			for (int y = 0; y < 10; y++) {// letters
 				for (int x = 0; x < 10; x++) {// numbers
 					chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x, worldPoint.getRegionY() + y, client.getPlane(), WhatType(x, y), WhatColor(x, y), WhatLabel(x, y)));
@@ -527,21 +533,53 @@ public class ChessPlugin extends Plugin {
 						if ((x >= 1 || x <= 8) && (y >= 1 && y <= 8)) {
 							List<Player> players = Stream.concat(Stream.of(client.getLocalPlayer()), client.getPlayers().stream()).filter(p -> ChessOverlay.chessPieceUsername.contains(p.getName()))
 									.collect(Collectors.toCollection(ArrayList::new));
+							boolean isEmptyTile = true;
 							for (int i = 0; i < players.size(); i++) {
 								Player player = players.get(i);
 								WorldPoint playerPoint = player.getWorldLocation();
 								if (playerPoint.getX() == worldPoint.getX() + x && playerPoint.getY() == worldPoint.getY() + y) {
-									char pieceType = ChessOverlay.usernameToType.getOrDefault(player.getName(), null);
-									if (pieceType <= 0)
-										continue;
-									player.setOverheadText(pieceType + "");
+									char pieceType = ChessOverlay.usernameToType.getOrDefault(player.getName(), '\0');
+
+									if (currentCount == 8) {
+										if (blankTilesCount > 0) {
+											FENString.append(blankTilesCount);
+											blankTilesCount = 0;
+										}
+										FENString.append("/");
+										currentCount = 0;
+									}
+									if (pieceType == '\0') {
+										blankTilesCount++;
+										currentCount++;
+										break;
+									}
 									// notify chess engine of this piece
-									chessHandler.initPiece(x, y, pieceType);
+									if (blankTilesCount > 0) {
+										FENString.append(blankTilesCount);
+										blankTilesCount = 0;
+									}
+									FENString.append(pieceType);
+									currentCount++;
+									if (currentCount == 8) {
+										FENString.append("/");
+										currentCount = 0;
+									}
+
+									// notify chess engine of this piece
+									player.setOverheadText(pieceType + "");
+									break;
+								}
+								if (isEmptyTile) {
+									blankTilesCount++;
 								}
 							}
 						}
 					}
 				}
+			}
+			if(updateVisuals == false) {
+				FENString.setLength(FENString.length()-1);
+				chessHandler.initBaseBoard(FENString.toString());
 			}
 		}
 
