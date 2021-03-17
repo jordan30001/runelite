@@ -387,9 +387,9 @@ public class ChessPlugin extends Plugin {
 	}
 
 	public void restartBoard() {
+		chessHandler.reset();
 		markTile(localPoint, false, true);
 		markTile(localPoint, true, false);
-		chessHandler.reset();
 	}
 
 	@Subscribe

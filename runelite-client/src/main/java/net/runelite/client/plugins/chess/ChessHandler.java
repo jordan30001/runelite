@@ -31,10 +31,9 @@ public class ChessHandler {
 	}
 
 	public void reset() {
-		this.position = null;
-		this.startupBoard = new Board(new Piece[8][8]);
 		this.history = null;
-		initBaseBoard();
+		this.startupBoard = new Board(new Piece[8][8]);
+		this.position = Position.fromFEN(this.startupBoard.toFEN()).right();
 	}
 
 	public void initBaseBoard() {
@@ -48,6 +47,7 @@ public class ChessHandler {
 			this.pieceUsernames = new String[8][8];
 		}
 		this.startupBoard.values()[x][y] = Piece.fromFEN(piece);
+		this.position = new Position().fromFEN(this.startupBoard.toFEN()).right();
 	}
 
 	public Either<Exception, Position> tryMove(int[] iMove) {
