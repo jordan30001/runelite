@@ -113,6 +113,7 @@ public class ChatCommands {
 						} else if (splitInput.length == 4) {
 							sFrom = splitInput[2];
 							sTo = splitInput[3];
+							move = ChessHandler.getXYOffset(sFrom, sTo);
 							result = plugin.getChessHandler().tryMove(move);
 						} else {
 							messageToSend = String.format(TwitchChat.RESPONSE_MOVE_PIECE_HELP, channelMessage.getUser().getName());
