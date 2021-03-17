@@ -118,6 +118,7 @@ public class ChessPlugin extends Plugin {
 	private final List<ColorTileMarker> points = new ArrayList<>();
 
 	@Inject
+	@Getter(AccessLevel.PUBLIC)
 	public Client client;
 
 	@Inject
@@ -242,7 +243,7 @@ public class ChessPlugin extends Plugin {
 			return Collections.emptyList();
 		}
 
-		return points.stream().map(point -> new ColorTileMarker(WorldPoint.fromRegion(point.getRegionId(), point.getRegionX(), point.getRegionY(), point.getZ()), point.getType(), point.getColor(), point.getLabel(), true))
+		return points.stream().map(point -> new ColorTileMarker(WorldPoint.fromRegion(point.getRegionId(), point.getRegionX(), point.getRegionY(), point.getZ()), point.getType(), point.getColor(), point.getLabel(), false))
 				.flatMap(colorTile -> {
 					final Collection<WorldPoint> localWorldPoints = WorldPoint.toLocalInstance(client, colorTile.getWorldPoint());
 					return localWorldPoints.stream().map(wp -> new ColorTileMarker(wp, colorTile.getType(), colorTile.getColor(), colorTile.getLabel(), colorTile.isTemporary()));
@@ -408,6 +409,7 @@ public class ChessPlugin extends Plugin {
 	public void restartBoard() {
 		markTile(localPoint, false, true);
 		markTile(localPoint, true, false);
+		chessHandler.reset();
 	}
 
 	@Subscribe
