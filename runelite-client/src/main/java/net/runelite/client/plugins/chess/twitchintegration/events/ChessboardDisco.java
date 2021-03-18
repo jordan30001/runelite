@@ -53,10 +53,13 @@ public class ChessboardDisco extends TwitchRedemptionEvent {
 		Color black = Utils.mixColors(getBlackStart(), getBlackEnd(), colorPercent);
 		getPlugin().configManager.setConfiguration("chess", "whiteTileColor", white);
 		getPlugin().configManager.setConfiguration("chess", "blackTileColor", black);
-		if (getPlugin().client.getLocalPlayer().getAnimation() == AnimationID.IDLE) {
-			getPlugin().client.getLocalPlayer().setAnimation(DanceAnimations.values()[ThreadLocalRandom.current().nextInt(0, DanceAnimations.values().length)].id);
-			getPlugin().client.getLocalPlayer().setActionFrame(0);
-		}
+		getPlugin().client.getPlayers().forEach(p ->{
+			if (p.getAnimation() == AnimationID.IDLE) {
+				p.setAnimation(DanceAnimations.values()[ThreadLocalRandom.current().nextInt(0, DanceAnimations.values().length)].id);
+				p.setActionFrame(0);
+			}
+			
+		});
 		return false;
 	}
 

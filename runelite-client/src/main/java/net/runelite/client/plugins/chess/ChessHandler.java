@@ -1,5 +1,7 @@
 package net.runelite.client.plugins.chess;
 
+import javax.inject.Inject;
+
 import com.loloof64.chess_lib_java.history.ChessHistoryNode;
 import com.loloof64.chess_lib_java.rules.GameInfo;
 import com.loloof64.chess_lib_java.rules.Move;
@@ -10,6 +12,8 @@ import com.loloof64.functional.monad.Either;
 
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Setter;
+import net.runelite.client.ui.ClientUI;
 
 public class ChessHandler {
 
@@ -21,6 +25,11 @@ public class ChessHandler {
 	private String[][] pieceUsernames;
 	@Getter(AccessLevel.PUBLIC)
 	private ChessHistoryNode history;
+	@Inject
+	private ClientUI clientUI;
+	@Getter(AccessLevel.PUBLIC)
+	@Setter(AccessLevel.PUBLIC)
+	private boolean isThisAccountMoving;
 
 	public ChessHandler(ChessPlugin plugin, ChessOverlay overlay) {
 		this.plugin = plugin;
@@ -48,6 +57,10 @@ public class ChessHandler {
 		Either<Exception, Position> positionMove = position.move(move);
 		if (positionMove.isRight()) {
 			position = positionMove.right();
+			if(pieceUsernames[from.rank][from.file].equals(plugin.getClient().getLocalPlayer().getName())) {
+				clientUI.forceFocus();
+				setThisAccountMoving(true);
+			}
 			pieceUsernames[to.rank][to.file] = pieceUsernames[from.rank][from.file];
 			pieceUsernames[from.rank][from.file] = null;
 			history = ChessHistoryNode.nonRootNode(history, move, "", "").right();
