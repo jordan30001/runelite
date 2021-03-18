@@ -1,7 +1,7 @@
 package net.runelite.client.plugins.chess;
 
 import com.loloof64.chess_lib_java.history.ChessHistoryNode;
-import com.loloof64.chess_lib_java.rules.Board;
+import com.loloof64.chess_lib_java.rules.GameInfo;
 import com.loloof64.chess_lib_java.rules.Move;
 import com.loloof64.chess_lib_java.rules.Position;
 import com.loloof64.chess_lib_java.rules.coords.BoardCell;
@@ -30,18 +30,13 @@ public class ChessHandler {
 	}
 
 	public void reset() {
-		this.history = null;
-		this.position = Position.fromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").right();
+		history = null;
+		position = Position.fromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").right();
 	}
 
-	public void initBaseBoard() {
-		this.position = Position.fromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").right();
+	public void initBaseBoard(String FENPieces) {
+		position = Position.fromFEN(FENPieces + " w KQkq - 0 1").right();
 		history = ChessHistoryNode.rootNode(position, "start", "").right();
-	}
-
-	public void initPiece(int x, int y, char piece) {
-		this.position.board.values()[x][y] = Piece.fromFEN(piece);
-		this.position = Position.fromFEN(this.position.board.toFEN()).right();
 	}
 
 	public Either<Exception, Position> tryMove(int[] iMove) {

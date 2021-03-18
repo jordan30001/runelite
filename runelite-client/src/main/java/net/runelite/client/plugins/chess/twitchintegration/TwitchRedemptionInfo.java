@@ -21,11 +21,11 @@ public class TwitchRedemptionInfo {
 
 	@Getter(AccessLevel.PUBLIC)
 	@Setter(AccessLevel.PRIVATE)
-	private volatile boolean started;
+	private volatile boolean started = true;
 
 	@Getter(AccessLevel.PUBLIC)
 	@Setter(AccessLevel.PRIVATE)
-	private volatile boolean currentExecutionFinished;
+	private volatile boolean currentExecutionFinished = true;
 
 	@Getter(AccessLevel.PUBLIC)
 	@Setter(AccessLevel.PRIVATE)

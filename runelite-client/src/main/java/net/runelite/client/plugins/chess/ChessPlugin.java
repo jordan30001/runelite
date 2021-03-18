@@ -56,6 +56,8 @@ import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchRedemptionInfo;
 import net.runelite.client.plugins.chess.twitchintegration.events.ChessboardDisco;
 import net.runelite.client.plugins.chess.twitchintegration.events.TwitchRedemptionEvent;
+import net.runelite.client.plugins.fps.FpsDrawListener;
+import net.runelite.client.ui.DrawManager;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 
@@ -140,9 +142,21 @@ public class ChessPlugin extends Plugin {
 	@Getter(AccessLevel.PUBLIC)
 	private ChessHandler chessHandler;
 	private ChatCommands chatCommands;
+	@Inject
+	private DrawManager drawManager;
+	@Getter(AccessLevel.PUBLIC)
+	private long deltaTime;
+	@Getter(AccessLevel.PUBLIC)
+	private long lastFrameTime = 0;
 
 	@Override
 	protected void startUp() throws Exception {
+		lastFrameTime = System.currentTimeMillis();
+		drawManager.registerEveryFrameListener(() -> {
+			long curTime = System.currentTimeMillis();
+			deltaTime = (curTime - lastFrameTime);
+			lastFrameTime = curTime;
+		});
 		overheadTextQueue = new ArrayBlockingQueue<>(20);
 		priorityOverheadTextQueue = new ArrayBlockingQueue<>(20);
 		twitchRedemptionQueue = new HashMap<>();
@@ -447,25 +461,21 @@ public class ChessPlugin extends Plugin {
 			TwitchRedemptionEvent redemption = queue.peek();
 			if (redemption == null)
 				continue;
-			TwitchRedemptionInfo twitchRedemptionEventInfo = redemption.getTwitchRedemptionInfo();
 
-			if (twitchRedemptionEventInfo.isStarted() == false) {
-				twitchRedemptionEventInfo.startCountdown(redemption.getRepeatedDelayTime());
-				break;
-			} else {
-				if (twitchRedemptionEventInfo.isCurrentExecutionFinished()) {
-					if (twitchRedemptionEventInfo.isFinished()) {
-						queue.poll();
-						break;
-					} else if (redemption.execute(twitchRedemptionEventInfo.getCurrentCallCount())) {
-						twitchRedemptionEventInfo.startCountdown(redemption.getEndingDelayTime());
-						break;
-					} else {
-						twitchRedemptionEventInfo.resetForNextExecution();
-						break;
-					}
-				}
+			if (redemption.execute(deltaTime)) {
+				queue.poll();
 			}
+
+			/*
+			 * if (twitchRedemptionEventInfo.isStarted() == false) {
+			 * twitchRedemptionEventInfo.startCountdown(redemption.getRepeatedDelayTime());
+			 * break; } else { if (twitchRedemptionEventInfo.isCurrentExecutionFinished()) {
+			 * if (twitchRedemptionEventInfo.isFinished()) { queue.poll(); break; } else if
+			 * (redemption.execute(deltaTime)) {
+			 * twitchRedemptionEventInfo.startCountdown(redemption.getEndingDelayTime());
+			 * break; } else { twitchRedemptionEventInfo.resetForNextExecution(); break; } }
+			 * }
+			 */
 		}
 	}
 
@@ -500,6 +510,12 @@ public class ChessPlugin extends Plugin {
 		List<ChessMarkerPoint> chessTiles = new ArrayList<>();
 
 		if (doMark) {
+			if (updateVisuals == false) {
+				chessHandler.reset();
+			}
+			StringBuilder FENString = new StringBuilder();
+			int blankTilesCount = 0;
+			int currentCount = 0;
 			for (int y = 0; y < 10; y++) {// letters
 				for (int x = 0; x < 10; x++) {// numbers
 					chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x, worldPoint.getRegionY() + y, client.getPlane(), WhatType(x, y), WhatColor(x, y), WhatLabel(x, y)));
@@ -507,20 +523,54 @@ public class ChessPlugin extends Plugin {
 						if ((x >= 1 || x <= 8) && (y >= 1 && y <= 8)) {
 							List<Player> players = Stream.concat(Stream.of(client.getLocalPlayer()), client.getPlayers().stream()).filter(p -> ChessOverlay.chessPieceUsername.contains(p.getName()))
 									.collect(Collectors.toCollection(ArrayList::new));
+							boolean isEmptyTile = true;
 							for (int i = 0; i < players.size(); i++) {
 								Player player = players.get(i);
 								WorldPoint playerPoint = player.getWorldLocation();
 								if (playerPoint.getX() == worldPoint.getX() + x && playerPoint.getY() == worldPoint.getY() + y) {
-									char pieceType = ChessOverlay.usernameToType.getOrDefault(player.getName(), null);
-									if (pieceType <= 0)
-										continue;
-									player.setOverheadText(pieceType + "");
+									char pieceType = ChessOverlay.usernameToType.getOrDefault(player.getName(), '\0');
+
+									if (currentCount == 8) {
+										if (blankTilesCount > 0) {
+											FENString.append(blankTilesCount);
+											blankTilesCount = 0;
+										}
+										FENString.append("/");
+										currentCount = 0;
+									}
+									if (pieceType == '\0') {
+										blankTilesCount++;
+										currentCount++;
+										break;
+									}
 									// notify chess engine of this piece
-									chessHandler.initPiece(x, y, pieceType);
+									if (blankTilesCount > 0) {
+										FENString.append(blankTilesCount);
+										blankTilesCount = 0;
+									}
+									FENString.append(pieceType);
+									currentCount++;
+									if (currentCount == 8) {
+										FENString.append("/");
+										currentCount = 0;
+									}
+
+									// notify chess engine of this piece
+									player.setOverheadText(pieceType + "");
+									break;
+								}
+								if (isEmptyTile) {
+									blankTilesCount++;
 								}
 							}
 						}
 					}
+				}
+			}
+			if (updateVisuals == false) {
+				if (Strings.isNullOrEmpty(FENString.toString()) == false) {
+					FENString.setLength(FENString.length() - 1);
+					chessHandler.initBaseBoard(FENString.toString());
 				}
 			}
 		}
@@ -572,7 +622,7 @@ public class ChessPlugin extends Plugin {
 				final IndexedSprite sprite = ImageUtil.getImageIndexedSprite(image, client);
 				newModIcons[modIconsStart + i] = sprite;
 			} catch (Exception ex) {
-				log.warn("Failed to load the sprite for emoji " + emoji, ex);
+				// log.warn("Failed to load the sprite for emoji " + emoji, ex);
 			}
 		}
 

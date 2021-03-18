@@ -12,5 +12,7 @@ public abstract class TwitchRedemptionEvent implements ITwitchRedemptionEvent {
 	@Getter(AccessLevel.PUBLIC)
 	private final long endingDelayTime;
 	@Getter(AccessLevel.PUBLIC)
+	private final long totalExecutionTime;
+	@Getter(AccessLevel.PUBLIC)
 	private final TwitchRedemptionInfo twitchRedemptionInfo;
 }

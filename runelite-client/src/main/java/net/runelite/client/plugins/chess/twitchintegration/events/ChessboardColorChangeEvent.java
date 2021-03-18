@@ -25,13 +25,13 @@ public class ChessboardColorChangeEvent extends TwitchRedemptionEvent {
 	private final String userInput;
 
 	public ChessboardColorChangeEvent(ChessPlugin plugin, String side, String userInput) {
-		super(REPEATED_DELAY_TIME, ENDING_DELAY_TIME, new TwitchRedemptionInfo());
+		super(REPEATED_DELAY_TIME, ENDING_DELAY_TIME, 0, new TwitchRedemptionInfo());
 		this.plugin = plugin;
 		this.side = side;
 		this.userInput = userInput;
 	}
 
-	public boolean execute(int callingCount) {
+	public boolean execute(long deltaTime) {
 		Color color = Utils.ColorFromString(userInput);
 		if (color == null)
 			plugin.queueOverheadText(String.format(INVALID_COLOR, userInput, SadKek.toHTMLString(plugin)), 6000, false);
