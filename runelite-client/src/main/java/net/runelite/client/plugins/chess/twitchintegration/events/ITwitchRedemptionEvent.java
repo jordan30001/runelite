@@ -4,7 +4,7 @@ import net.runelite.client.plugins.chess.twitchintegration.TwitchRedemptionInfo;
 
 public interface ITwitchRedemptionEvent {
 
-	public boolean execute(int callingCount);
+	public boolean execute(long deltaTime);
 	public TwitchRedemptionInfo getTwitchRedemptionInfo();
 	public long getRepeatedDelayTime();
 	public long getEndingDelayTime();

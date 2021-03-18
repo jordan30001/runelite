@@ -130,7 +130,7 @@ public class Utils {
 			}
 		}
 	}
-
+	
 	public static Queue<Color> LerpRandomColors(Map<String, Object> vars, int lerpCount, int totalColors) {
 		Queue<Color> colors = new LinkedBlockingQueue<>(totalColors * lerpCount);
 		Color[] staticColors = new Color[totalColors];

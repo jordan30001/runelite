@@ -89,6 +89,8 @@ import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchRedemptionInfo;
 import net.runelite.client.plugins.chess.twitchintegration.events.ChessboardDisco;
 import net.runelite.client.plugins.chess.twitchintegration.events.TwitchRedemptionEvent;
+import net.runelite.client.plugins.fps.FpsDrawListener;
+import net.runelite.client.ui.DrawManager;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 
@@ -160,9 +162,21 @@ public class ChessPlugin extends Plugin {
 	@Getter(AccessLevel.PUBLIC)
 	private ChessHandler chessHandler;
 	private ChatCommands chatCommands;
+	@Inject
+	private DrawManager drawManager;
+	@Getter(AccessLevel.PUBLIC)
+	private long deltaTime;
+	@Getter(AccessLevel.PUBLIC)
+	private long lastFrameTime = 0;
 
 	@Override
 	protected void startUp() throws Exception {
+		lastFrameTime = System.currentTimeMillis();
+		drawManager.registerEveryFrameListener(() -> {
+			long curTime = System.currentTimeMillis();
+			deltaTime = (curTime - lastFrameTime);
+			lastFrameTime = curTime;
+		});
 		overheadTextQueue = new ArrayBlockingQueue<>(20);
 		priorityOverheadTextQueue = new ArrayBlockingQueue<>(20);
 		twitchRedemptionQueue = new HashMap<>();
@@ -467,25 +481,21 @@ public class ChessPlugin extends Plugin {
 			TwitchRedemptionEvent redemption = queue.peek();
 			if (redemption == null)
 				continue;
-			TwitchRedemptionInfo twitchRedemptionEventInfo = redemption.getTwitchRedemptionInfo();
 
-			if (twitchRedemptionEventInfo.isStarted() == false) {
-				twitchRedemptionEventInfo.startCountdown(redemption.getRepeatedDelayTime());
-				break;
-			} else {
-				if (twitchRedemptionEventInfo.isCurrentExecutionFinished()) {
-					if (twitchRedemptionEventInfo.isFinished()) {
-						queue.poll();
-						break;
-					} else if (redemption.execute(twitchRedemptionEventInfo.getCurrentCallCount())) {
-						twitchRedemptionEventInfo.startCountdown(redemption.getEndingDelayTime());
-						break;
-					} else {
-						twitchRedemptionEventInfo.resetForNextExecution();
-						break;
-					}
-				}
+			if (redemption.execute(deltaTime)) {
+				queue.poll();
 			}
+
+			/*
+			 * if (twitchRedemptionEventInfo.isStarted() == false) {
+			 * twitchRedemptionEventInfo.startCountdown(redemption.getRepeatedDelayTime());
+			 * break; } else { if (twitchRedemptionEventInfo.isCurrentExecutionFinished()) {
+			 * if (twitchRedemptionEventInfo.isFinished()) { queue.poll(); break; } else if
+			 * (redemption.execute(deltaTime)) {
+			 * twitchRedemptionEventInfo.startCountdown(redemption.getEndingDelayTime());
+			 * break; } else { twitchRedemptionEventInfo.resetForNextExecution(); break; } }
+			 * }
+			 */
 		}
 	}
 
@@ -577,9 +587,11 @@ public class ChessPlugin extends Plugin {
 					}
 				}
 			}
-			if(updateVisuals == false) {
-				FENString.setLength(FENString.length()-1);
-				chessHandler.initBaseBoard(FENString.toString());
+			if (updateVisuals == false) {
+				if (Strings.isNullOrEmpty(FENString.toString()) == false) {
+					FENString.setLength(FENString.length() - 1);
+					chessHandler.initBaseBoard(FENString.toString());
+				}
 			}
 		}
 
@@ -630,7 +642,7 @@ public class ChessPlugin extends Plugin {
 				final IndexedSprite sprite = ImageUtil.getImageIndexedSprite(image, client);
 				newModIcons[modIconsStart + i] = sprite;
 			} catch (Exception ex) {
-				log.warn("Failed to load the sprite for emoji " + emoji, ex);
+				// log.warn("Failed to load the sprite for emoji " + emoji, ex);
 			}
 		}
 
