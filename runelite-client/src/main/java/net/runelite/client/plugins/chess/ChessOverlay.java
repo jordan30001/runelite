@@ -79,7 +79,7 @@ public class ChessOverlay extends Overlay {
 
 	// functions
 	private Function<Stream<Player>> getPlayers = () -> getClient().getPlayers().stream();
-	private Predicate<Player> renderPlayer = (p) -> getConfig().debugShowRandomPlayers() || chessPieceUsername.contains(p.getName());
+	private Predicate<Player> renderPlayer = (p) -> chessPieceUsername.contains(p.getName());
 	// vars
 	@Getter(AccessLevel.PRIVATE)
 	private final Client client;
@@ -90,7 +90,6 @@ public class ChessOverlay extends Overlay {
 	public static HashMap<String, Character> usernameToType;
 	@Getter
 	private Map<String, PlayerPolygonsTriangles> playerPolygonsTris;
-	private AtomicInteger atom = new AtomicInteger(10);
 	@Inject
 	private ClientUI clientUI;
 
@@ -115,7 +114,6 @@ public class ChessOverlay extends Overlay {
 			int endTimeRenderTiles = 0, endTimeGeneratePPTs = 0, endTimeGrabPPTs = 0, endTimeUpdatePPTs = 0, endTimeDrawPolys = 0;
 
 			long startTimeTotal = System.currentTimeMillis();
-			atom.set(getConfig().debugShowRandomPlayersCount());
 			BufferedImage image = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(), BufferedImage.TYPE_INT_ARGB);
 			Graphics graphicsTemp = image.getGraphics();
 			final Collection<ColorTileMarker> points = plugin.getPoints();
@@ -150,11 +148,7 @@ public class ChessOverlay extends Overlay {
 			endTimeGrabPPTs = (int) (System.currentTimeMillis() - startTimeGrabPPTs);
 			long startTimeUpdatePPTs = System.currentTimeMillis();
 			/* update PPTs */
-			if (getConfig().debugUseMultithreading()) {
-				mainThreadPool.submit(() -> getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> updatePlayerPolygonsTriangles(ppt))).get();
-			} else {
-				getPlayerPolygonsTris().values().stream().forEach(ppt -> updatePlayerPolygonsTriangles(ppt));
-			}
+			mainThreadPool.submit(() -> getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> updatePlayerPolygonsTriangles(ppt))).get();
 			endTimeUpdatePPTs = (int) (System.currentTimeMillis() - startTimeUpdatePPTs);
 
 			long startTimeDrawPolys = System.currentTimeMillis();
@@ -199,13 +193,8 @@ public class ChessOverlay extends Overlay {
 
 	private void generatePPTs(Player player) {
 		String name = player.getName();
-		if (getConfig().debugShowRandomPlayers() && atom.get() <= 0) {
-			getPlayerPolygonsTris().remove(name);
-			return;
-		}
 		if (getPlayerPolygonsTris().containsKey(name) == false)
 			getPlayerPolygonsTris().put(name, new PlayerPolygonsTriangles(player));
-		atom.decrementAndGet();
 	}
 
 	private PlayerPolygonsTriangles updatePlayerPolygonsTriangles(PlayerPolygonsTriangles ppt) {
@@ -255,8 +244,7 @@ public class ChessOverlay extends Overlay {
 					tileColor = point.getColor();
 					break;
 				}
-			}
-			else {
+			} else {
 				tileColor = point.getColor();
 			}
 

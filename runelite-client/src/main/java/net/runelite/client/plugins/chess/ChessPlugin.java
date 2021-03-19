@@ -38,6 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ForkJoinPool;
@@ -86,10 +88,9 @@ import net.runelite.client.plugins.chess.data.ColorTileMarker;
 import net.runelite.client.plugins.chess.twitchintegration.ChatCommands;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchEventRunners;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
-import net.runelite.client.plugins.chess.twitchintegration.TwitchRedemptionInfo;
 import net.runelite.client.plugins.chess.twitchintegration.events.ChessboardDisco;
 import net.runelite.client.plugins.chess.twitchintegration.events.TwitchRedemptionEvent;
-import net.runelite.client.plugins.fps.FpsDrawListener;
+import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
@@ -168,7 +169,7 @@ public class ChessPlugin extends Plugin {
 	private long deltaTime;
 	@Getter(AccessLevel.PUBLIC)
 	private long lastFrameTime = 0;
-
+	
 	@Override
 	protected void startUp() throws Exception {
 		lastFrameTime = System.currentTimeMillis();
@@ -534,13 +535,12 @@ public class ChessPlugin extends Plugin {
 				chessHandler.reset();
 			}
 			StringBuilder FENString = new StringBuilder();
-			int blankTilesCount = 0;
-			int currentCount = 0;
+			char[][] pieces = new char[8][8];
 			for (int y = 0; y < 10; y++) {// letters
 				for (int x = 0; x < 10; x++) {// numbers
 					chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x, worldPoint.getRegionY() + y, client.getPlane(), WhatType(x, y), WhatColor(x, y), WhatLabel(x, y)));
 					if (updateVisuals == false) {
-						if ((x >= 1 || x <= 8) && (y >= 1 && y <= 8)) {
+						if ((x >= 1 && x <= 8) && (y >= 1 && y <= 8)) {
 							List<Player> players = Stream.concat(Stream.of(client.getLocalPlayer()), client.getPlayers().stream()).filter(p -> ChessOverlay.chessPieceUsername.contains(p.getName()))
 									.collect(Collectors.toCollection(ArrayList::new));
 							boolean isEmptyTile = true;
@@ -549,38 +549,10 @@ public class ChessPlugin extends Plugin {
 								WorldPoint playerPoint = player.getWorldLocation();
 								if (playerPoint.getX() == worldPoint.getX() + x && playerPoint.getY() == worldPoint.getY() + y) {
 									char pieceType = ChessOverlay.usernameToType.getOrDefault(player.getName(), '\0');
-
-									if (currentCount == 8) {
-										if (blankTilesCount > 0) {
-											FENString.append(blankTilesCount);
-											blankTilesCount = 0;
-										}
-										FENString.append("/");
-										currentCount = 0;
-									}
-									if (pieceType == '\0') {
-										blankTilesCount++;
-										currentCount++;
-										break;
-									}
-									// notify chess engine of this piece
-									if (blankTilesCount > 0) {
-										FENString.append(blankTilesCount);
-										blankTilesCount = 0;
-									}
-									FENString.append(pieceType);
-									currentCount++;
-									if (currentCount == 8) {
-										FENString.append("/");
-										currentCount = 0;
-									}
-
+									pieces[y-1][x-1] = pieceType;
 									// notify chess engine of this piece
 									player.setOverheadText(pieceType + "");
 									break;
-								}
-								if (isEmptyTile) {
-									blankTilesCount++;
 								}
 							}
 						}
@@ -588,9 +560,10 @@ public class ChessPlugin extends Plugin {
 				}
 			}
 			if (updateVisuals == false) {
+				chessHandler.initBaseBoard(pieces);
 				if (Strings.isNullOrEmpty(FENString.toString()) == false) {
 					FENString.setLength(FENString.length() - 1);
-					chessHandler.initBaseBoard(FENString.toString());
+					System.out.println(FENString.toString());
 				}
 			}
 		}
