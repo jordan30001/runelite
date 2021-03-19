@@ -24,7 +24,7 @@
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -->
 <configuration scan="true">
-    <appender name="STDOUT" class="net.runelite.client.plugins.chessstream.ConsoleAppender">
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
 	    <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
 		    <layout class="net.runelite.client.plugins.chessstream.StreamingSafety">
 		        <maskPattern>(?&lt;username&gt;-?-?username=[a-zA-Z0-9 @+.]+)</maskPattern>
