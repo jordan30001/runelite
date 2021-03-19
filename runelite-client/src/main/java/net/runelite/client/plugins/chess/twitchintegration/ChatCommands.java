@@ -128,7 +128,7 @@ public class ChatCommands {
 								}
 							}
 							
-							if (plugin.getChessHandler().isThisAccountMoving() == false) {
+							if (plugin.getChessHandler().isThisAccountMoving()) {
 								ChessMarkerPoint cmp = new ChessMarkerPoint(plugin.getWorldPoint().getRegionID(), plugin.getWorldPoint().getRegionX() + move[1] + 1, plugin.getWorldPoint().getRegionY() + move[0] + 1,
 										plugin.getClient().getPlane(), null, Color.RED, null);
 								ChessMarkerPoint cmp2 = new ChessMarkerPoint(plugin.getWorldPoint().getRegionID(), plugin.getWorldPoint().getRegionX() + move[3] + 1, plugin.getWorldPoint().getRegionY() + move[2] + 1,

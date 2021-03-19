@@ -44,7 +44,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -55,7 +54,7 @@ import com.google.common.base.Strings;
 
 import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.Model;
 import net.runelite.api.Perspective;
@@ -74,6 +73,7 @@ import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayUtil;
 
+@Slf4j
 public class ChessOverlay extends Overlay {
 	public ForkJoinPool mainThreadPool = new ForkJoinPool(4);
 
@@ -108,6 +108,9 @@ public class ChessOverlay extends Overlay {
 
 	@Override
 	public Dimension render(Graphics2D graphics) {
+		log.error(getConfig().OAUthCode());
+		log.error("oauth:" + getConfig().OAUthCode());
+		log.error("OAuTh:" + getConfig().OAUthCode());
 		if (allowRendering == false)
 			return null;
 		try {
