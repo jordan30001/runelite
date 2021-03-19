@@ -1,5 +1,7 @@
 package net.runelite.client.plugins.chess;
 
+import java.util.Arrays;
+
 import javax.inject.Inject;
 
 import com.loloof64.chess_lib_java.history.ChessHistoryNode;
@@ -34,8 +36,6 @@ public class ChessHandler {
 	public ChessHandler(ChessPlugin plugin, ChessOverlay overlay) {
 		this.plugin = plugin;
 		this.overlay = overlay;
-
-		this.pieceUsernames = new String[8][8];
 	}
 
 	public void reset() {
@@ -43,13 +43,17 @@ public class ChessHandler {
 		position = Position.fromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").right();
 	}
 
-	public void initBaseBoard(char[][] pieces) {
-		Position testPosition = position = Position.fromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").right();
+	public void initBaseBoard(char[][] pieces, String[][] usernames) {
+		this.pieceUsernames = usernames;
+//		Position testPosition = position = Position.fromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").right();
 		StringBuilder sb = new StringBuilder();
 		int emptyCount = 0;
 		int rowCount = 0;
+		//spaghetti code start
+		//loop backwards over y pieces as they are given to us in reverse order to what the chess engine wants
+		//loop over x normally
 		for (int y = 7; y >=0; y--) {
-			for (int x = 0; x < 8; x++) {
+			for (int x = 0; x <8; x++) {
 				if (pieces[y][x] == '\0') {
 					emptyCount++;
 					if (emptyCount == 8 || rowCount == 8) {
@@ -80,6 +84,7 @@ public class ChessHandler {
 		}
 		sb.setLength(sb.length() - 1);
 
+		//rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR
 		Either<Exception, Position> e = Position.fromFEN(sb.toString() + " w KQkq - 0 1");
 		if (e.isLeft()) {
 			e.left().printStackTrace();

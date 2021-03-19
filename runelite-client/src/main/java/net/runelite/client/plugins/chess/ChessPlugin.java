@@ -534,22 +534,24 @@ public class ChessPlugin extends Plugin {
 			if (updateVisuals == false) {
 				chessHandler.reset();
 			}
-			StringBuilder FENString = new StringBuilder();
 			char[][] pieces = new char[8][8];
-			for (int y = 0; y < 10; y++) {// letters
-				for (int x = 0; x < 10; x++) {// numbers
+			String[][] usernames = new String[8][8];
+			//spaghetti code start, render the chessboard backwards, which is actually forwards in the chess verifier
+			for (int y = 9; y >= 0; y--) {// letters
+				for (int x = 9; x >= 0; x--) {// numbers
 					chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x, worldPoint.getRegionY() + y, client.getPlane(), WhatType(x, y), WhatColor(x, y), WhatLabel(x, y)));
 					if (updateVisuals == false) {
 						if ((x >= 1 && x <= 8) && (y >= 1 && y <= 8)) {
 							List<Player> players = Stream.concat(Stream.of(client.getLocalPlayer()), client.getPlayers().stream()).filter(p -> ChessOverlay.chessPieceUsername.contains(p.getName()))
 									.collect(Collectors.toCollection(ArrayList::new));
-							boolean isEmptyTile = true;
 							for (int i = 0; i < players.size(); i++) {
 								Player player = players.get(i);
 								WorldPoint playerPoint = player.getWorldLocation();
+								//WorldPoint(x=3160, y=3501, plane=0)
 								if (playerPoint.getX() == worldPoint.getX() + x && playerPoint.getY() == worldPoint.getY() + y) {
 									char pieceType = ChessOverlay.usernameToType.getOrDefault(player.getName(), '\0');
 									pieces[y-1][x-1] = pieceType;
+									usernames[y-1][x-1] = player.getName();
 									// notify chess engine of this piece
 									player.setOverheadText(pieceType + "");
 									break;
@@ -560,11 +562,7 @@ public class ChessPlugin extends Plugin {
 				}
 			}
 			if (updateVisuals == false) {
-				chessHandler.initBaseBoard(pieces);
-				if (Strings.isNullOrEmpty(FENString.toString()) == false) {
-					FENString.setLength(FENString.length() - 1);
-					System.out.println(FENString.toString());
-				}
+				chessHandler.initBaseBoard(pieces, usernames);
 			}
 		}
 
