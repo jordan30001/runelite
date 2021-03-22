@@ -171,20 +171,8 @@ public class CameraOverlay extends OverlayPanel
 				.right("" + client.getLocalPlayer().getLocalLocation())
 				.build());
 
-		panelComponent.getChildren().add(LineComponent.builder()
-				.left("WorldArea")
-				.right("" + client.getLocalPlayer().getWorldArea())
-				.build());
 
-		panelComponent.getChildren().add(LineComponent.builder()
-				.left("WorldArea")
-				.right("" + client.getLocalPlayer().getModelHeight())
-				.build());
 
-		panelComponent.getChildren().add(LineComponent.builder()
-				.left("extremeZ")
-				.right("" + client.getLocalPlayer().getModel().getExtremeZ())
-				.build());
 
 		return super.render(graphics);
 	}

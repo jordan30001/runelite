@@ -94,8 +94,6 @@ public class BlenderOldPlugin extends Plugin {
         cameraJSON.addProperty("worldPlayer", "" + client.getLocalPlayer().getWorldLocation());
         cameraJSON.addProperty("SceneX", "" + client.getBaseX());
         cameraJSON.addProperty("SceneY", "" + client.getBaseY());
-        cameraJSON.addProperty("Orient", "" + client.getLocalPlayer().getOrientation());
-
 
 
         parent.getAsJsonArray("data").add(cameraJSON);
