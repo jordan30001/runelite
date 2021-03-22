@@ -49,6 +49,7 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 
+import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -87,9 +88,9 @@ import net.runelite.client.plugins.chess.data.ChessMarkerPointType;
 import net.runelite.client.plugins.chess.data.ColorTileMarker;
 import net.runelite.client.plugins.chess.twitchintegration.ChatCommands;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchEventRunners;
-import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
 import net.runelite.client.plugins.chess.twitchintegration.events.ChessboardDisco;
 import net.runelite.client.plugins.chess.twitchintegration.events.TwitchRedemptionEvent;
+import net.runelite.client.plugins.twitch4j.TwitchIntegration;
 import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.client.ui.overlay.OverlayManager;
@@ -153,8 +154,6 @@ public class ChessPlugin extends Plugin {
 	private LocalPoint localPoint;
 	@Getter(AccessLevel.PUBLIC)
 	private WorldPoint worldPoint;
-	@Getter
-	private TwitchIntegration twitchHandler;
 	private TwitchEventRunners twitchListeners;
 	public int modIconsStart = -1;
 	private BlockingQueue<OverheadTextInfo> overheadTextQueue;
@@ -200,14 +199,14 @@ public class ChessPlugin extends Plugin {
 			e.printStackTrace();
 		}
 		chatCommands = new ChatCommands(this);
+		chatCommands.init();
 	}
 
 	@Override
 	protected void shutDown() throws Exception {
 		overlayManager.remove(overlay);
-		twitchHandler.shutdown();
+		twitchListeners.shutdown();
 		points.clear();
-
 	}
 
 	void savePoints(Collection<ChessMarkerPoint> points, WorldPoint worldPoint, LocalPoint localPoint) {
@@ -335,17 +334,6 @@ public class ChessPlugin extends Plugin {
 			}
 		}
 
-		// TODO: check if is streamer
-		if (twitchHandler == null) {
-			try {
-				twitchHandler = new TwitchIntegration(config, this, overlay);
-				twitchHandler.start();
-			} catch (Exception e) {
-				e.printStackTrace();
-				twitchHandler = null;
-			}
-		}
-
 		if (event != null) {
 			if (event.getKey().equals("whiteTileColor") || event.getKey().equals("blackTileColor")) {
 				getPoints().forEach(ctm -> {
@@ -373,6 +361,8 @@ public class ChessPlugin extends Plugin {
 				threads = Runtime.getRuntime().availableProcessors();
 			overlay.mainThreadPool = new ForkJoinPool(threads);
 		}
+		
+		twitchListeners.configChanged();
 	}
 
 	@Subscribe

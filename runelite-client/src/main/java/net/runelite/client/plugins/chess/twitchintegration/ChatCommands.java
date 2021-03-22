@@ -34,6 +34,7 @@ import net.runelite.client.plugins.chess.data.ChessEmotes;
 import net.runelite.client.plugins.chess.data.ChessMarkerPoint;
 import net.runelite.client.plugins.chess.data.ColorTileMarker;
 import net.runelite.client.plugins.chess.twitchintegration.events.ChessboardColorChangeEvent;
+import net.runelite.client.plugins.twitch4j.TwitchIntegration;
 import net.runelite.client.util.Text;
 
 public class ChatCommands {
@@ -41,10 +42,15 @@ public class ChatCommands {
 
 	@Getter(AccessLevel.PUBLIC)
 	private ChessPlugin plugin;
+	@Inject
+	private TwitchIntegration twitchHandler;
 
 	public ChatCommands(ChessPlugin plugin) {
 		this.plugin = plugin;
-		plugin.getTwitchHandler().RegisterListener(ChannelMessageEvent.class, this::onMessageEvent);
+	}
+	
+	public void init() {
+		twitchHandler.RegisterListener(ChannelMessageEvent.class, this::onMessageEvent);
 	}
 
 	public void onMessageEvent(ChannelMessageEvent event) {
