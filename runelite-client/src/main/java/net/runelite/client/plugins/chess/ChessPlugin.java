@@ -125,6 +125,7 @@ public class ChessPlugin extends Plugin {
 	public Client client;
 
 	@Inject
+	@Getter(AccessLevel.PUBLIC)
 	private ChessConfig config;
 
 	@Inject

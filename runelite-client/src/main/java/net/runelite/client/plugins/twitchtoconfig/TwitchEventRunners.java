@@ -5,15 +5,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.google.inject.Inject;
-
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.twitch4j.chat.events.channel.ChannelMessageEvent;
 import com.github.twitch4j.common.enums.CommandPermission;
 import com.github.twitch4j.helix.TwitchHelix;
+import com.google.inject.Inject;
 
-import net.runelite.client.plugins.chess.ChessOverlay;
-import net.runelite.client.plugins.chess.ChessPlugin;
 import net.runelite.client.plugins.twitch4j.TwitchIntegration;
 
 public class TwitchEventRunners {
@@ -53,7 +50,9 @@ public class TwitchEventRunners {
 				return true;
 		});
 		// this is stupid, need to refactor to allow for removal of listeners.
-		twitchHandler.RegisterListener(ChannelMessageEvent.class, this::onMessageEvent);
+		twitchHandler.addChatListener(credential, ChannelMessageEvent.class);
+		twitchHandler.RegisterListener(credential, ChannelMessageEvent.class, this::onMessageEvent);
+		twitchHandler.joinChannel(credential, plugin.getConfig().channelName());
 	}
 
 	public void onMessageEvent(ChannelMessageEvent event) {
@@ -72,10 +71,10 @@ public class TwitchEventRunners {
 						if (chunks.length == 2 || chunks.length == 3) {
 							messageToSend = "Set client configurations that are listening: Fully Qualified Config Name (case sensitive) followed by the value. Syntax: chess.whiteBoardColor #696969";
 						} else {
-							String FQCN = chunks[4].startsWith("!") ? shortcuts.getOrDefault(chunks[4].toLowerCase(), null) : chunks[4];
+							String FQCN = chunks[2].startsWith("!") ? shortcuts.getOrDefault(chunks[2].toLowerCase(), null) : chunks[2];
 							String pluginName = FQCN.substring(0, FQCN.indexOf("."));
 							String key = FQCN.substring(FQCN.indexOf(".") + 1, FQCN.length());
-							String value = chunks.length > 4 ? Arrays.stream(chunks, 5, chunks.length).collect(Collectors.joining("")): "";
+							String value = chunks.length > 3 ? Arrays.stream(chunks, 3, chunks.length).collect(Collectors.joining("")): "";
 							String tempMessageToSend = String.format("Set config '%s' to '%s'", FQCN, value);
 							plugin.getClientThread().invokeLater(() -> {
 								plugin.setConfig(pluginName, key, value);
@@ -84,12 +83,12 @@ public class TwitchEventRunners {
 						}
 						break;
 					case "addshortcut":
-						if (chunks.length == 2 || chunks.length == 3 || chunks[3].contains("!") == false) {
+						if (chunks.length == 2 || chunks.length == 3 || chunks[2].startsWith("!") == false) {
 							messageToSend = "Sets a shotcut for a Fully Qualified Config Name for use in 'set' commands (shortcut must begin with '!'). Syntax: !wbc chess.whiteBoardColor";
 						} else {
-							String tempMessageToSend = String.format("Set shortcut '%s' to fully qualified config name '%s'", chunks[3], chunks[4]);
+							String tempMessageToSend = String.format("Set shortcut '%s' to fully qualified config name '%s'", chunks[2], chunks[3]);
 							plugin.getClientThread().invokeLater(() -> {
-								shortcuts.put(chunks[3], chunks[4]);
+								shortcuts.put(chunks[2], chunks[3]);
 								plugin.setShortcuts(shortcuts);
 								event.getTwitchChat().sendMessage(event.getChannel().getName(), tempMessageToSend);
 							});

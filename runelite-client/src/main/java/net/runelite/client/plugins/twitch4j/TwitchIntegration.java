@@ -25,8 +25,8 @@ import lombok.extern.slf4j.Slf4j;
 public class TwitchIntegration {
 	public static final TwitchIntegration INSTANCE = new TwitchIntegration();
 	private ReentrantReadWriteLock lock;
-	private List<Class<?>> subscribedEvents;
-	private Map<Class<?>, List<Consumer<?>>> eventListeners;
+	private Map<OAuth2Credential, List<Class<?>>> subscribedEvents;
+	private Map<OAuth2Credential, Map<Class<?>, List<Consumer<?>>>> eventListeners;
 	private Map<OAuth2Credential, TwitchHelix> helixEndpoints;
 	private Map<OAuth2Credential, TwitchClient> twitchClients;
 	private List<Predicate<OAuth2Credential>> shutdownList;
@@ -34,7 +34,7 @@ public class TwitchIntegration {
 	public TwitchIntegration() {
 		eventListeners = new HashMap<>();
 		lock = new ReentrantReadWriteLock();
-		subscribedEvents = new ArrayList<>();
+		subscribedEvents = new HashMap<>();
 		helixEndpoints = new HashMap<>();
 		shutdownList = new ArrayList<>();
 		twitchClients = new HashMap<>();
@@ -95,7 +95,7 @@ public class TwitchIntegration {
 			if (withPubSub) {
 				twitchClient.getPubSub().connect();
 			}
-			if(withChat) {
+			if (withChat) {
 				twitchClient.getChat().connect();
 			}
 			return twitchClient;
@@ -104,27 +104,64 @@ public class TwitchIntegration {
 		}
 	}
 
-	public void RegisterPubSubListener(OAuth2Credential credential, Class<?> eventType) {
+	public void addPubsubListener(OAuth2Credential credential, Class<?> eventType) {
 		Optional<TwitchClient> client = getTwitchClient(credential);
 		if (client.isPresent() == false) {
 			throw new IllegalStateException("twitch client has not been previously created");
-		}		try {
+		}
+		try {
 			lock.writeLock().lock();
-		if (subscribedEvents.contains(eventType))
-			return;
-		subscribedEvents.add(eventType);
-		client.get().getPubSub().getEventManager().onEvent(eventType, this::DispatchEvents);		} finally {
+			List<Class<?>> events = subscribedEvents.getOrDefault(credential, null);
+			if (events == null) {
+				events = new ArrayList<>();
+				subscribedEvents.put(credential, events);
+			}
+			if (events.contains(eventType))
+				return;
+			events.add(eventType);
+			client.get().getPubSub().getEventManager().onEvent(eventType, (e) -> {
+				DispatchEvents(credential, e);
+			});
+		} finally {
 			lock.writeLock().unlock();
 		}
 	}
 
-	public <E> void RegisterListener(Class<E> eventClass, Consumer<E> callback) {
+	public void addChatListener(OAuth2Credential credential, Class<?> eventType) {
+		Optional<TwitchClient> client = getTwitchClient(credential);
+		if (client.isPresent() == false) {
+			throw new IllegalStateException("twitch client has not been previously created");
+		}
 		try {
 			lock.writeLock().lock();
-			List<Consumer<?>> listeners = eventListeners.get(eventClass);
+			List<Class<?>> events = subscribedEvents.getOrDefault(credential, null);
+			if (events == null) {
+				events = new ArrayList<>();
+				subscribedEvents.put(credential, events);
+			}
+			if (events.contains(eventType))
+				return;
+			events.add(eventType);
+			client.get().getChat().getEventManager().onEvent(eventType, (e) -> {
+				DispatchEvents(credential, e);
+			});
+		} finally {
+			lock.writeLock().unlock();
+		}
+	}
+
+	public <E> void RegisterListener(OAuth2Credential credential, Class<E> eventClass, Consumer<E> callback) {
+		try {
+			lock.writeLock().lock();
+			Map<Class<?>, List<Consumer<?>>> allListeners = eventListeners.get(credential);
+			if(allListeners == null) {
+				allListeners = new HashMap<>();
+				eventListeners.put(credential, allListeners);
+			}
+			List<Consumer<?>> listeners = allListeners.get(eventClass);
 			if (listeners == null) {
 				listeners = new ArrayList<>();
-				eventListeners.put(eventClass, listeners);
+				allListeners.put(eventClass, listeners);
 			}
 			listeners.add(callback);
 		} finally {
@@ -133,11 +170,15 @@ public class TwitchIntegration {
 	}
 
 	@SuppressWarnings("unchecked")
-	private <E> void DispatchEvents(E event) {
+	private <E> void DispatchEvents(OAuth2Credential credential, E event) {
 		try {
 			lock.readLock().lock();
-			List<Consumer<?>> callbacks = eventListeners.getOrDefault((event.getClass()), null);
-			if (callbacks == null)
+			Map<Class<?>, List<Consumer<?>>> alLListeners = eventListeners.getOrDefault(credential, null);
+			if (alLListeners == null)
+				return;
+			
+			List<Consumer<?>> callbacks = alLListeners.getOrDefault(event.getClass(), null);
+			if(callbacks == null)
 				return;
 
 			callbacks.forEach(c -> ((Consumer<E>) c).accept(event));
@@ -145,6 +186,16 @@ public class TwitchIntegration {
 			e.printStackTrace();
 		} finally {
 			lock.readLock().unlock();
+		}
+	}
+	
+	public void joinChannel(OAuth2Credential credential, String channelName) {
+		Optional<TwitchClient> twitchClient = getTwitchClient(credential);
+		if (twitchClient.isPresent() == false) {
+			throw new IllegalStateException("twitch client has not been previously created");
+		}
+		if (twitchClient.get().getChat().isChannelJoined(channelName) == false) {
+			twitchClient.get().getChat().joinChannel(channelName);
 		}
 	}
 
@@ -176,7 +227,8 @@ public class TwitchIntegration {
 	}
 
 	public void shutdown(OAuth2Credential credential) {
-		if(credential == null) return;
+		if (credential == null)
+			return;
 		try {
 			lock.readLock().lock();
 //			private Map<OAuth2Credential, TwitchHelix> helixEndpoints;

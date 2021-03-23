@@ -37,6 +37,7 @@ public class TwitchEventRunners {
 
 	public void configChanged() {
 		if (credential != null) {
+			shutdown = true;
 			twitchHandler.shutdown(credential);
 		}
 		init();
@@ -57,10 +58,9 @@ public class TwitchEventRunners {
 		});
 		// this is stupid, need to refactor to allow for removal of listeners.
 		TwitchIntegration eventManager = twitchHandler;
-		eventManager.RegisterPubSubListener(credential, RewardRedeemedEvent.class);
-		eventManager.RegisterListener(RewardRedeemedEvent.class, this::CheckChessBoardColorChange);
-		eventManager.RegisterListener(ChannelSubscribeEvent.class, this::onTwitchSub);
-		eventManager.RegisterListener(FollowingEvent.class, this::onFollower);
+		eventManager.addPubsubListener(credential, RewardRedeemedEvent.class);
+		eventManager.RegisterListener(credential, RewardRedeemedEvent.class, this::CheckChessBoardColorChange);
+		twitchHandler.joinChannel(credential, plugin.getConfig().channelName());
 	}
 
 	public void CheckChessBoardColorChange(RewardRedeemedEvent event) {
@@ -83,33 +83,6 @@ public class TwitchEventRunners {
 			break;
 
 		}
-	}
-
-	public void onTwitchSub(ChannelSubscribeEvent event) {
-		SubscriptionData data = event.getData();
-		switch (data.getSubPlan()) {
-		case TIER1:
-			plugin.queueOverheadText(String.format("%s just subscribed %s", data.getDisplayName(), ChessEmotes.Bladeb7PogChamp.toHTMLString(plugin.modIconsStart)), 5000, false);
-			break;
-		case TIER2:
-			plugin.queueOverheadText(String.format("%s just subscribed %s", data.getDisplayName(), ChessEmotes.HandsUp.toHTMLString(plugin.modIconsStart)), 5000, false);
-			break;
-		case TIER3:
-			plugin.queueOverheadText(String.format("%s just subscribed %s", data.getDisplayName(), ChessEmotes.WidePeepoHappy.toHTMLString(plugin.modIconsStart)), 5000, false);
-			break;
-		case TWITCH_PRIME:
-			plugin.queueOverheadText(String.format("%s just subscribed %s", data.getDisplayName(), ChessEmotes.PrimeWhatYouSay.toHTMLString(plugin.modIconsStart)), 5000, false);
-			break;
-		case NONE:
-		default:
-			break;
-
-		}
-	}
-
-	public void onFollower(FollowingEvent event) {
-		FollowingData data = event.getData();
-		plugin.queueOverheadText(String.format("Thanks for following %s%s", data.getDisplayName(), ChessEmotes.PeepoHappy.toHTMLString(plugin.modIconsStart)), 5000, false);
 	}
 
 	public void shutdown() {
