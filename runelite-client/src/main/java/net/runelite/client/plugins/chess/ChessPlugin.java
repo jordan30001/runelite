@@ -98,7 +98,6 @@ import net.runelite.client.util.ImageUtil;
 
 @Slf4j
 @PluginDescriptor(name = "Chess", description = "Chess plugin", tags = { "config", "chess" })
-
 public class ChessPlugin extends Plugin {
 	private static final String CONFIG_GROUP = "chessMarker";
 	private static final String MARK = "Mark chessboard";
@@ -184,19 +183,19 @@ public class ChessPlugin extends Plugin {
 
 		overlayManager.add(overlay);
 		loadPoints();
-		this.config = overlay.config;
 
-		onConfigChanged(null);
-		try {
-			loadEmojiIcons();
-		} catch (Exception e) {
-			// probably not on blades pc
-		}
+		this.config = overlay.config;
 		try {
 			twitchListeners = new TwitchEventRunners(this, overlay);
 			twitchListeners.init();
 		} catch (Exception e) {
 			e.printStackTrace();
+		}
+		onConfigChanged(null);
+		try {
+			loadEmojiIcons();
+		} catch (Exception e) {
+			// probably not on blades pc
 		}
 		chatCommands = new ChatCommands(this);
 		chatCommands.init();

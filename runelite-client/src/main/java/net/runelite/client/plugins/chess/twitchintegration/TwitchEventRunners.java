@@ -3,7 +3,7 @@ package net.runelite.client.plugins.chess.twitchintegration;
 import java.util.Arrays;
 import java.util.Map;
 
-import javax.inject.Inject;
+import com.google.inject.Inject;
 
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.twitch4j.helix.TwitchHelix;
@@ -22,8 +22,7 @@ import net.runelite.client.plugins.twitch4j.TwitchIntegration;
 
 public class TwitchEventRunners {
 
-	@Inject
-	private TwitchIntegration twitchHandler;
+	private TwitchIntegration twitchHandler = TwitchIntegration.INSTANCE;
 	@Inject
 	private ChessPlugin plugin;
 	private ChessOverlay overlay;

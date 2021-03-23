@@ -42,8 +42,7 @@ public class ChatCommands {
 
 	@Getter(AccessLevel.PUBLIC)
 	private ChessPlugin plugin;
-	@Inject
-	private TwitchIntegration twitchHandler;
+	private TwitchIntegration twitchHandler = TwitchIntegration.INSTANCE;
 
 	public ChatCommands(ChessPlugin plugin) {
 		this.plugin = plugin;

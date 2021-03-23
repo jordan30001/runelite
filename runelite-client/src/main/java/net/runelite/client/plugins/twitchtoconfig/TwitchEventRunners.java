@@ -1,10 +1,11 @@
 package net.runelite.client.plugins.twitchtoconfig;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import javax.inject.Inject;
+import com.google.inject.Inject;
 
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.twitch4j.chat.events.channel.ChannelMessageEvent;
@@ -17,8 +18,7 @@ import net.runelite.client.plugins.twitch4j.TwitchIntegration;
 
 public class TwitchEventRunners {
 
-	@Inject
-	private TwitchIntegration twitchHandler;
+	private TwitchIntegration twitchHandler = TwitchIntegration.INSTANCE;
 	@Inject
 	private TwitchToConfigPlugin plugin;
 	private OAuth2Credential credential;
@@ -39,6 +39,7 @@ public class TwitchEventRunners {
 
 	public void init() {
 		shortcuts = plugin.loadShortcuts();
+		if(shortcuts == null) shortcuts = new HashMap<>();
 		credential = new OAuth2Credential("twitch", plugin.getConfig().OAUthCode());
 		TwitchHelix helix = twitchHandler.createTwitchHelixEndpointsIfNotExist(plugin.getConfig().clientID(), credential);
 		Map<String, String> channelInfo = twitchHandler.getTwitchChannelIDsFromName(helix, credential, Arrays.asList(new String[] { plugin.getConfig().channelName(), plugin.getConfig().botName() }));
