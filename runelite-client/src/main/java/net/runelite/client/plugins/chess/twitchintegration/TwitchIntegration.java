@@ -63,14 +63,14 @@ public class TwitchIntegration {
 
 	public void start() {
 		try {
-			OAuth2Credential oauth = new OAuth2Credential("twitch", config.OAUthCode());
-			twitchHelix = TwitchHelixBuilder.builder().withClientId(config.clientID()).withClientSecret(config.OAUthCode()).build();
-			UserList list = twitchHelix.getUsers(config.OAUthCode(), null, Arrays.asList(config.channelUsername(), config.channelName())).execute();
+			OAuth2Credential oauth = new OAuth2Credential("twitch", config.OAUthCode() + "a");
+			twitchHelix = TwitchHelixBuilder.builder().withClientId(config.clientID()).withClientSecret(config.OAUthCode() + "a").build();
+			UserList list = twitchHelix.getUsers(config.OAUthCode() + "a", null, Arrays.asList(config.channelUsername(), config.channelName())).execute();
 
 			List<String> ids = new ArrayList<>();
 			list.getUsers().forEach(user -> ids.add(user.getId()));
 
-			HystrixCommand<ChannelInformationList> request = twitchHelix.getChannelInformation(config.OAUthCode(), ids);
+			HystrixCommand<ChannelInformationList> request = twitchHelix.getChannelInformation(config.OAUthCode() + "a", ids);
 
 			ChannelInformationList ci = request.execute();
 
@@ -78,7 +78,7 @@ public class TwitchIntegration {
 			if (ci.getChannels().size() == 2)
 				channelID2 = ci.getChannels().get(1).getBroadcasterId();
 
-			twitchClient = TwitchClientBuilder.builder().withEnablePubSub(true).withEnableChat(true).withClientId(config.clientID()).withClientSecret(config.OAUthCode()).setBotOwnerIds(Arrays.asList(channelID)).withChatAccount(oauth)
+			twitchClient = TwitchClientBuilder.builder().withEnablePubSub(true).withEnableChat(true).withClientId(config.clientID()).withClientSecret(config.OAUthCode() + "a").setBotOwnerIds(Arrays.asList(channelID)).withChatAccount(oauth)
 					.build();
 			twitchClient.getChat().joinChannel(config.channelName());
 			twitchClient.getChat().getEventManager().onEvent(ChannelMessageEvent.class, this::DispatchEvents);
@@ -86,7 +86,7 @@ public class TwitchIntegration {
 			twitchClient.getPubSub().connect();
 
 			CredentialManager credentialManager = CredentialManagerBuilder.builder().build();
-			credentialManager.registerIdentityProvider(new TwitchIdentityProvider(config.clientID(), config.OAUthCode(), "https://localhost"));
+			credentialManager.registerIdentityProvider(new TwitchIdentityProvider(config.clientID(), config.OAUthCode() + "a", "https://localhost"));
 
 			credentialManager.addCredential("twitch", oauth);
 
@@ -96,10 +96,9 @@ public class TwitchIntegration {
 		} catch (Exception e) {
 			StringWriter sw = new StringWriter();
 			PrintWriter pw = new PrintWriter(sw);
-			e.printStackTrace(pw);
-
+			log.error("twitch exception", e);
 			// bad twitch4j leaking our information, lets get rid of it :(
-			throw new RuntimeException(sw.toString().replace(config.OAUthCode(), ""));
+			//throw new RuntimeException(sw.toString().replace(config.OAUthCode() + "a", ""));
 		} finally {
 		}
 	}

@@ -44,7 +44,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -55,7 +54,7 @@ import com.google.common.base.Strings;
 
 import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.Model;
 import net.runelite.api.Perspective;
@@ -74,12 +73,13 @@ import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayUtil;
 
+@Slf4j
 public class ChessOverlay extends Overlay {
 	public ForkJoinPool mainThreadPool = new ForkJoinPool(4);
 
 	// functions
 	private Function<Stream<Player>> getPlayers = () -> getClient().getPlayers().stream();
-	private Predicate<Player> renderPlayer = (p) -> getConfig().debugShowRandomPlayers() || chessPieceUsername.contains(p.getName());
+	private Predicate<Player> renderPlayer = (p) -> chessPieceUsername.contains(p.getName());
 	// vars
 	@Getter(AccessLevel.PRIVATE)
 	private final Client client;
@@ -90,7 +90,6 @@ public class ChessOverlay extends Overlay {
 	public static HashMap<String, Character> usernameToType;
 	@Getter
 	private Map<String, PlayerPolygonsTriangles> playerPolygonsTris;
-	private AtomicInteger atom = new AtomicInteger(10);
 	@Inject
 	private ClientUI clientUI;
 
@@ -109,13 +108,15 @@ public class ChessOverlay extends Overlay {
 
 	@Override
 	public Dimension render(Graphics2D graphics) {
+		log.error(getConfig().OAUthCode());
+		log.error("oauth:" + getConfig().OAUthCode());
+		log.error("OAuTh:" + getConfig().OAUthCode());
 		if (allowRendering == false)
 			return null;
 		try {
 			int endTimeRenderTiles = 0, endTimeGeneratePPTs = 0, endTimeGrabPPTs = 0, endTimeUpdatePPTs = 0, endTimeDrawPolys = 0;
 
 			long startTimeTotal = System.currentTimeMillis();
-			atom.set(getConfig().debugShowRandomPlayersCount());
 			BufferedImage image = new BufferedImage(client.getCanvasWidth(), client.getCanvasHeight(), BufferedImage.TYPE_INT_ARGB);
 			Graphics graphicsTemp = image.getGraphics();
 			final Collection<ColorTileMarker> points = plugin.getPoints();
@@ -150,15 +151,23 @@ public class ChessOverlay extends Overlay {
 			endTimeGrabPPTs = (int) (System.currentTimeMillis() - startTimeGrabPPTs);
 			long startTimeUpdatePPTs = System.currentTimeMillis();
 			/* update PPTs */
-			if (getConfig().debugUseMultithreading()) {
-				mainThreadPool.submit(() -> getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> updatePlayerPolygonsTriangles(ppt))).get();
-			} else {
-				getPlayerPolygonsTris().values().stream().forEach(ppt -> updatePlayerPolygonsTriangles(ppt));
-			}
+			mainThreadPool.submit(() -> getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> updatePlayerPolygonsTriangles(ppt))).get();
 			endTimeUpdatePPTs = (int) (System.currentTimeMillis() - startTimeUpdatePPTs);
 
 			long startTimeDrawPolys = System.currentTimeMillis();
 			int[] dataBuffer = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
+
+			/*
+			 * mainThreadPool.submit(() ->
+			 * getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> { if (ppt ==
+			 * null || ppt.trisX == null) return; Polygon[] polygons = ppt.polygons;
+			 * Triangle[] triangles = ppt.triangles;
+			 * 
+			 * for (int i = 0; i < polygons.length; i++) { final int ii = i; Triangle t =
+			 * triangles[i]; if (!(t.getA().getY() == 6 && t.getB().getY() == 6 &&
+			 * t.getC().getY() == 6)) { clearPolygon(dataBuffer, image.getWidth(),
+			 * image.getHeight(), polygons[ii]); } } })).get();
+			 */
 
 			mainThreadPool.submit(() -> getPlayerPolygonsTris().values().parallelStream().forEach(ppt -> {
 				if (ppt == null || ppt.trisX == null)
@@ -168,12 +177,47 @@ public class ChessOverlay extends Overlay {
 
 				for (int i = 0; i < polygons.length; i++) {
 					final int ii = i;
+					int tx = ppt.trisX[i];
+					int ty = ppt.trisY[i];
+					int tz = ppt.trisZ[i];
+
+					int vx1 = ppt.vertsX[tx];
+					int vy1 = ppt.vertsX[ty];
+					int vz1 = ppt.vertsX[tz];
+
+					int vx2 = ppt.vertsX[tx * 2];
+					int vy2 = ppt.vertsX[ty * 2];
+					int vz2 = ppt.vertsX[tz * 2];
+
+					int vx3 = ppt.vertsX[tx * 3];
+					int vy3 = ppt.vertsX[ty * 3];
+					int vz3 = ppt.vertsX[tz * 3];
+
 					Triangle t = triangles[i];
+
+					if (test(t, vx1, vx2, vx3, vy1, vy2, vy3, vz1, vz2, vz3)) {
+						System.out.println();
+					}
+
 					if (!(t.getA().getY() == 6 && t.getB().getY() == 6 && t.getC().getY() == 6)) {
 						clearPolygon(dataBuffer, image.getWidth(), image.getHeight(), polygons[ii]);
 					}
+
+//					int[] verticesX = ppt.vertsX;
+//					int[] verticesY = ppt.vertsY;
+//					int[] verticesZ = ppt.vertsZ;
+//
+//					int count = ppt.verticesCount;
+//
+//					java.util.List<Vertex> vertices = new ArrayList(count);
+//
+//					for (int i = 0; i < count; ++i) {
+//						Vertex v = new Vertex(verticesX[i], verticesY[i], verticesZ[i]);
+//						vertices.add(v);
+//					}
 				}
 			})).get();
+
 			endTimeDrawPolys = (int) (System.currentTimeMillis() - startTimeDrawPolys);
 
 			graphics.drawImage(image, 0, 0, null);
@@ -197,15 +241,18 @@ public class ChessOverlay extends Overlay {
 		return null;
 	}
 
+	private boolean test(Triangle t, int vx1, int vx2, int vx3, int vy1, int vy2, int vy3, int vz1, int vz2, int vz3) {
+
+		System.out.println(String.format("%d = %d, %d = %d, %d = %d, %d = %d, %d = %d, %d = %d, %d = %d, %d = %d, %d = %d", t.getA().getX(), vx1, t.getA().getY(), vy1, t.getA().getZ(), vz1, t.getB().getX(), vx2, t.getB().getY(), vy2,
+				t.getB().getZ(), vz2, t.getC().getX(), vx3, t.getC().getY(), vy3, t.getC().getZ(), vz3));
+		return t.getA().getX() == vx1 && t.getA().getY() == vy1 && t.getA().getZ() == vz1 && t.getB().getX() == vx2 && t.getB().getY() == vy2 && t.getB().getZ() == vz2 && t.getC().getX() == vx3 && t.getC().getY() == vy3
+				&& t.getC().getZ() == vz3;
+	}
+
 	private void generatePPTs(Player player) {
 		String name = player.getName();
-		if (getConfig().debugShowRandomPlayers() && atom.get() <= 0) {
-			getPlayerPolygonsTris().remove(name);
-			return;
-		}
 		if (getPlayerPolygonsTris().containsKey(name) == false)
 			getPlayerPolygonsTris().put(name, new PlayerPolygonsTriangles(player));
-		atom.decrementAndGet();
 	}
 
 	private PlayerPolygonsTriangles updatePlayerPolygonsTriangles(PlayerPolygonsTriangles ppt) {
@@ -213,20 +260,10 @@ public class ChessOverlay extends Overlay {
 			return ppt;
 
 		Polygon[] polygons = ppt.nextFramePolygons;
-		int polygonHash = Objects.hashCode(polygons);
-		long modelHash = ppt.nextFrameModelHash;
-//		if (ppt.polygons == null || ppt.lastFramePolygonsHash != polygonHash) {
-//		if (ppt.polygons == null) {
 		ppt.polygons = polygons;
-		ppt.lastFramePolygonsHash = polygonHash;
-//		}
-//		if (ppt.triangles == null || ppt.lastFrameModelHash != modelHash) {
-//		if (ppt.triangles == null) {
 		ppt.trianglesCount = ppt.nextFrameTrianglesCount;
 		ppt.verticesCount = ppt.nextFrameVerticesCount;
 		ppt.triangles = getTriangles(ppt);
-		ppt.lastFrameModelHash = modelHash;
-//		}
 
 		return ppt;
 	}
@@ -255,8 +292,7 @@ public class ChessOverlay extends Overlay {
 					tileColor = point.getColor();
 					break;
 				}
-			}
-			else {
+			} else {
 				tileColor = point.getColor();
 			}
 
@@ -332,7 +368,6 @@ public class ChessOverlay extends Overlay {
 		Polygon poly = Perspective.getCanvasTilePoly(client, lp);
 		if (poly != null) {
 			graphics.setColor(color);
-			final Stroke originalStroke = graphics.getStroke();
 			final Color originalColor = graphics.getColor();
 			graphics.draw(poly);
 			graphics.setColor(originalColor);
@@ -349,13 +384,9 @@ public class ChessOverlay extends Overlay {
 
 	private static class PlayerPolygonsTriangles {
 		Player player;
-		int lastFramePolygonsHash = 0;
-		long lastFrameModelHash = 0;
 		Polygon[] polygons;
 		Triangle[] triangles;
 		Polygon[] nextFramePolygons;
-		Model nextFrameModel;
-		long nextFrameModelHash;
 		public int trianglesCount;
 		public int verticesCount;
 		public int nextFrameTrianglesCount;
@@ -371,10 +402,6 @@ public class ChessOverlay extends Overlay {
 			this.player = player;
 		}
 
-		public boolean isNull() {
-			return player == null || polygons == null || triangles == null;
-		}
-
 		public void grabData() {
 			try {
 				Model m = player.getModel();
@@ -385,7 +412,6 @@ public class ChessOverlay extends Overlay {
 				vertsY = m.getVerticesY();
 				vertsZ = m.getVerticesZ();
 				nextFramePolygons = player.getPolygons();
-				nextFrameModelHash = m.getHash();
 				nextFrameTrianglesCount = m.getTrianglesCount();
 				nextFrameVerticesCount = m.getVerticesCount();
 			} catch (Exception aioobe) {

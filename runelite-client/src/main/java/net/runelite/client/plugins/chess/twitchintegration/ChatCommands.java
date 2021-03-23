@@ -34,6 +34,7 @@ import net.runelite.client.plugins.chess.data.ChessEmotes;
 import net.runelite.client.plugins.chess.data.ChessMarkerPoint;
 import net.runelite.client.plugins.chess.data.ColorTileMarker;
 import net.runelite.client.plugins.chess.twitchintegration.events.ChessboardColorChangeEvent;
+import net.runelite.client.plugins.twitch4j.TwitchIntegration;
 import net.runelite.client.util.Text;
 
 public class ChatCommands {
@@ -41,10 +42,15 @@ public class ChatCommands {
 
 	@Getter(AccessLevel.PUBLIC)
 	private ChessPlugin plugin;
+	@Inject
+	private TwitchIntegration twitchHandler;
 
 	public ChatCommands(ChessPlugin plugin) {
 		this.plugin = plugin;
-		plugin.getTwitchHandler().RegisterListener(ChannelMessageEvent.class, this::onMessageEvent);
+	}
+	
+	public void init() {
+		twitchHandler.RegisterListener(ChannelMessageEvent.class, this::onMessageEvent);
 	}
 
 	public void onMessageEvent(ChannelMessageEvent event) {
@@ -84,7 +90,7 @@ public class ChatCommands {
 					case TwitchChat.MOD_SET_CHESS_BOARD_COLOR:
 						if (splitInput.length == 2 || splitInput.length == 3) {
 							messageToSend = String.format(TwitchChat.RESPONSE_SET_CHESS_BOARD_COLOR_HELP, channelMessage.getUser().getName());
-						} else if(splitInput.length == 4){
+						} else if (splitInput.length == 4) {
 							String strColor = Arrays.stream(splitInput, 3, splitInput.length).collect(Collectors.joining(" "));
 							Color color = Utils.ColorFromString(strColor);
 							if (color == null) {
@@ -120,11 +126,6 @@ public class ChatCommands {
 							break;
 						}
 						if (result.isRight()) {
-							ChessMarkerPoint cmp = new ChessMarkerPoint(plugin.getWorldPoint().getRegionID(), plugin.getWorldPoint().getRegionX() + move[1] + 1, plugin.getWorldPoint().getRegionY() + move[0] + 1, plugin.getClient().getPlane(), null,
-									Color.RED, null);
-							ChessMarkerPoint cmp2 = new ChessMarkerPoint(plugin.getWorldPoint().getRegionID(), plugin.getWorldPoint().getRegionX() + move[3] + 1, plugin.getWorldPoint().getRegionY() + move[2] + 1, plugin.getClient().getPlane(), null,
-									Color.GREEN, null);
-
 							List<ColorTileMarker> points = plugin.getPoints();
 
 							for (int i = points.size() - 1; i >= 0; i--) {
@@ -132,16 +133,24 @@ public class ChatCommands {
 									points.remove(i);
 								}
 							}
+							
+							if (plugin.getChessHandler().isThisAccountMoving()) {
+								ChessMarkerPoint cmp = new ChessMarkerPoint(plugin.getWorldPoint().getRegionID(), plugin.getWorldPoint().getRegionX() + move[1] + 1, plugin.getWorldPoint().getRegionY() + move[0] + 1,
+										plugin.getClient().getPlane(), null, Color.RED, null);
+								ChessMarkerPoint cmp2 = new ChessMarkerPoint(plugin.getWorldPoint().getRegionID(), plugin.getWorldPoint().getRegionX() + move[3] + 1, plugin.getWorldPoint().getRegionY() + move[2] + 1,
+										plugin.getClient().getPlane(), null, Color.GREEN, null);
 
-							Stream.of(cmp, cmp2).map(point -> new ColorTileMarker(WorldPoint.fromRegion(point.getRegionId(), point.getRegionX(), point.getRegionY(), point.getZ()), point.getType(), point.getColor(), point.getLabel(), true))
-									.flatMap(colorTile -> {
-										final Collection<WorldPoint> localWorldPoints = WorldPoint.toLocalInstance(plugin.getClient(), colorTile.getWorldPoint());
-										return localWorldPoints.stream().map(wp -> new ColorTileMarker(wp, colorTile.getType(), colorTile.getColor(), colorTile.getLabel(), colorTile.isTemporary()));
-									}).forEach(ctm -> plugin.getPoints().add(ctm));
+								Stream.of(cmp, cmp2)
+										.map(point -> new ColorTileMarker(WorldPoint.fromRegion(point.getRegionId(), point.getRegionX(), point.getRegionY(), point.getZ()), point.getType(), point.getColor(), point.getLabel(), true))
+										.flatMap(colorTile -> {
+											final Collection<WorldPoint> localWorldPoints = WorldPoint.toLocalInstance(plugin.getClient(), colorTile.getWorldPoint());
+											return localWorldPoints.stream().map(wp -> new ColorTileMarker(wp, colorTile.getType(), colorTile.getColor(), colorTile.getLabel(), colorTile.isTemporary()));
+										}).forEach(ctm -> plugin.getPoints().add(ctm));
 
-							Position position = plugin.getChessHandler().getHistory().parent.relatedPosition;
-							char a = position.getPieceAt(new BoardCell(move[0], move[1])).toFEN();
-							messageToSend = String.format(TwitchChat.RESPONSE_MOVE_PIECE_VALID, channelMessage.getUser().getName(), ChessAscii.fromFEN(a).ascii, sFrom, sTo);
+								Position position = plugin.getChessHandler().getHistory().parent.relatedPosition;
+								char a = position.getPieceAt(new BoardCell(move[0], move[1])).toFEN();
+								messageToSend = String.format(TwitchChat.RESPONSE_MOVE_PIECE_VALID, channelMessage.getUser().getName(), ChessAscii.fromFEN(a).ascii, sFrom, sTo);
+							}
 						} else {
 							messageToSend = String.format(TwitchChat.RESPONSE_MOVE_PIECE_HELP, channelMessage.getUser().getName());
 						}

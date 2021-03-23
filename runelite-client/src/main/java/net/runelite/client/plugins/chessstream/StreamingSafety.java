@@ -16,8 +16,8 @@ public class StreamingSafety extends PatternLayout {
 
 	public void addMaskPattern(String maskPattern) { // invoked for every single entry in the xml
 		maskPatterns.add(maskPattern);
-		multilinePattern = Pattern.compile(String.join("|", maskPatterns), // build pattern using logical OR
-				Pattern.MULTILINE);
+		multilinePattern = Pattern.compile(String.join("|", maskPatterns) // build pattern using logical OR
+				, Pattern.MULTILINE);
 	}
 
 	@Override
@@ -37,15 +37,15 @@ public class StreamingSafety extends PatternLayout {
 			} else if (matcher.group().contains("path")) {
 				stripPath(sb, matcher);
 			}
+			matcher.reset();
 		}
 		return sb.toString();
 	}
 
 	private void stripPath(StringBuilder sb, Matcher matcher) {
-		String targetExpression = matcher.group();
-		String[] split = targetExpression.split("=");
-		String pan = "3head";//split[1].chars().mapToObj(c -> "*").collect(Collectors.joining());
-		int start = matcher.start() + split[0].length() + 1;
+		String targetExpression = matcher.group("path");
+		String pan = targetExpression.chars().mapToObj(c -> "*").collect(Collectors.joining());
+		int start = matcher.start() + targetExpression.length() + 1;
 		int end = matcher.end();
 		sb.replace(start, end, pan);
 	}
@@ -53,7 +53,7 @@ public class StreamingSafety extends PatternLayout {
 	private void stripCredentials(StringBuilder sb, Matcher matcher) {
 		String targetExpression = matcher.group();
 		String[] split = targetExpression.split("=");
-		String pan = "3head";//split[1].chars().mapToObj(c -> "*").collect(Collectors.joining());
+		String pan = split[1].chars().mapToObj(c -> "*").collect(Collectors.joining());
 		int start = matcher.start() + split[0].length() + 1;
 		int end = matcher.end();
 		sb.replace(start, end, pan);

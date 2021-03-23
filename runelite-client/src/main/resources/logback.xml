@@ -27,42 +27,14 @@
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
 	    <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
 		    <layout class="net.runelite.client.plugins.chessstream.StreamingSafety">
-		        <maskPattern>-?-?username=[a-zA-Z0-9 @+.]+</maskPattern>
-		        <maskPattern>-?-?password=[a-zA-Z0-9-=\[\];&apos;#\\.,/`¬!&quot;£$%^&amp;*()_+{}:@~&lt;&gt;?|]+</maskPattern>
-		        <maskPattern>(?&lt;path&gt;(?:[^\/\\]*(?:\/|\\))*)(.*)</maskPattern>
-		        <pattern>%d{dd/MM/yyyy HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n%ex</pattern>
+		        <maskPattern>(?&lt;username&gt;-?-?username=[a-zA-Z0-9 @+.]+)</maskPattern>
+		        <maskPattern>(?&lt;password&gt;-?-?password=[a-zA-Z0-9-=\[\];&apos;#\\.,/`¬!&quot;£$%^&amp;()_+{}:@~&lt;&gt;?|]+)</maskPattern>
+		        <maskPattern>(?&lt;oauth&gt;(oauth(\\|\/)?:)?[a-zA-Z0-9]+)</maskPattern>
+		        <pattern>%d{dd/MM/yyyy HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
 		    </layout>
 		</encoder>
     </appender>
-    
-
-<!--     <appender name="FILE" class="net.runelite.client.plugins.chessstream.RollingFileAppender">
-    	<encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
-		    <layout class="net.runelite.client.plugins.chessstream.StreamingSafety">
-		        <maskPattern>-?-?username=[a-zA-Z0-9 @+.]+</maskPattern>
-		        <maskPattern>-?-?password=[a-zA-Z0-9-=\[\];&apos;#\\.,/`¬!&quot;£$%^&amp;*()_+{}:@~&lt;&gt;?|]+</maskPattern>
-		        <maskPattern>(?&lt;path&gt;(?:[^\/\\]*(?:\/|\\))*)(.*)</maskPattern>
-		        <pattern>%d{dd/MM/yyyy HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n%ex</pattern>
-		    </layout>
-		</encoder>
-        <file>${user.home}/.runelite/logs/client.log</file>
-
-        <rollingPolicy class="net.runelite.client.plugins.chessstream.TimeBasedRollingPolicy">
-            daily rollover
-            <fileNamePattern>${user.home}/.runelite/logs/client_%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-
-            when file size is larger than defined, roll to new file
-            <timeBasedFileNamingAndTriggeringPolicy class="net.runelite.client.plugins.chessstream.SizeAndTimeBasedFNATP">
-                <maxFileSize>10MB</maxFileSize>
-            </timeBasedFileNamingAndTriggeringPolicy>
-
-            keep 30 days' worth of history
-            <maxHistory>30</maxHistory>
-        </rollingPolicy>
-    </appender> -->
-
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
-        <!-- <appender-ref ref="FILE"/> -->
     </root>
 </configuration>
