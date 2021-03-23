@@ -33,10 +33,9 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 
-@ConfigGroup("twitchtoconfig")
+@ConfigGroup("chesstoconfig")
 public interface TwitchToConfigConfig extends Config {
 
-    
     @ConfigItem(
             keyName = "OAUthCode",
             name = "OAUth Code (no colon :D)",

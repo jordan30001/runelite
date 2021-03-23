@@ -1,29 +1,26 @@
 package net.runelite.client.plugins.twitchtoconfig;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import javax.annotation.Nullable;
-import javax.inject.Inject;
+import com.google.inject.Inject;
 
-import com.apollographql.apollo.Logger;
 import com.google.gson.Gson;
 
+import com.google.inject.Provides;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.events.BeforeRender;
-import net.runelite.api.events.MenuEntryAdded;
-import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.chess.ChessConfig;
 
 @Slf4j
-@PluginDescriptor(name = "Twitch To Config", description = "", tags = { "Twitch", "Config" })
+@PluginDescriptor(name = "TwitchToConfig", description = "Twitch to Config Config", tags = { "Twitch", "Config" })
 public class TwitchToConfigPlugin extends Plugin {
 
 	@Inject
@@ -48,6 +45,11 @@ public class TwitchToConfigPlugin extends Plugin {
 		} catch (Exception e) {
 			log.error("Error loading TwitchToConfigPlugin", e);
 		}
+	}
+
+	@Provides
+	TwitchToConfigConfig getConfig(ConfigManager configManager) {
+		return configManager.getConfig(TwitchToConfigConfig.class);
 	}
 
 	@Override

@@ -22,8 +22,8 @@ import com.netflix.hystrix.HystrixCommand;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@Singleton
 public class TwitchIntegration {
+	public static final TwitchIntegration INSTANCE = new TwitchIntegration();
 	private ReentrantReadWriteLock lock;
 	private List<Class<?>> subscribedEvents;
 	private Map<Class<?>, List<Consumer<?>>> eventListeners;
@@ -35,6 +35,9 @@ public class TwitchIntegration {
 		eventListeners = new HashMap<>();
 		lock = new ReentrantReadWriteLock();
 		subscribedEvents = new ArrayList<>();
+		helixEndpoints = new HashMap<>();
+		shutdownList = new ArrayList<>();
+		twitchClients = new HashMap<>();
 	}
 
 	public Optional<TwitchHelix> getTwitchHelixEndpoints(OAuth2Credential credential) {
@@ -81,14 +84,19 @@ public class TwitchIntegration {
 
 	public TwitchClient createTwitchClientIfNotExist(String clientID, OAuth2Credential credential, List<String> botOwnerChannelIDs, boolean withChat, boolean withPubSub) {
 		try {
+			lock.writeLock().lock();
 			Optional<TwitchClient> optTwitchClient = getTwitchClient(credential);
 			if (optTwitchClient.isPresent()) {
 				return optTwitchClient.get();
 			}
 
 			TwitchClient twitchClient = TwitchClientBuilder.builder().withEnablePubSub(withPubSub).withEnableChat(withChat).withClientId(clientID).setBotOwnerIds(botOwnerChannelIDs).withChatAccount(credential).build();
+			twitchClients.put(credential, twitchClient);
 			if (withPubSub) {
 				twitchClient.getPubSub().connect();
+			}
+			if(withChat) {
+				twitchClient.getChat().connect();
 			}
 			return twitchClient;
 		} finally {
@@ -100,11 +108,14 @@ public class TwitchIntegration {
 		Optional<TwitchClient> client = getTwitchClient(credential);
 		if (client.isPresent() == false) {
 			throw new IllegalStateException("twitch client has not been previously created");
-		}
+		}		try {
+			lock.writeLock().lock();
 		if (subscribedEvents.contains(eventType))
 			return;
 		subscribedEvents.add(eventType);
-		client.get().getPubSub().getEventManager().onEvent(eventType, this::DispatchEvents);
+		client.get().getPubSub().getEventManager().onEvent(eventType, this::DispatchEvents);		} finally {
+			lock.writeLock().unlock();
+		}
 	}
 
 	public <E> void RegisterListener(Class<E> eventClass, Consumer<E> callback) {
