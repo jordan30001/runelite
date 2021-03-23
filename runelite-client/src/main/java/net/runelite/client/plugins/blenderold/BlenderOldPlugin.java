@@ -150,7 +150,7 @@ public class BlenderOldPlugin extends Plugin {
 
     private void socketConnect(String data) {
         try {
-            String sURL = "http://localhost:8005/?data=" + URLEncoder.encode(data, "utf-8");
+            String sURL = "http://localhost:8004/?data=" + URLEncoder.encode(data, "utf-8");
 
             URL url = new URL(sURL);
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
