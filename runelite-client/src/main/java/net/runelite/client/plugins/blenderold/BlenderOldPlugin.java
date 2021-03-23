@@ -94,8 +94,6 @@ public class BlenderOldPlugin extends Plugin {
         cameraJSON.addProperty("worldPlayer", "" + client.getLocalPlayer().getWorldLocation());
         cameraJSON.addProperty("SceneX", "" + client.getBaseX());
         cameraJSON.addProperty("SceneY", "" + client.getBaseY());
-        cameraJSON.addProperty("Orient", "" + client.getLocalPlayer().getOrientation());
-
 
 
         parent.getAsJsonArray("data").add(cameraJSON);
@@ -152,7 +150,7 @@ public class BlenderOldPlugin extends Plugin {
 
     private void socketConnect(String data) {
         try {
-            String sURL = "http://localhost:8005/?data=" + URLEncoder.encode(data, "utf-8");
+            String sURL = "http://localhost:8004/?data=" + URLEncoder.encode(data, "utf-8");
 
             URL url = new URL(sURL);
             HttpURLConnection con = (HttpURLConnection) url.openConnection();

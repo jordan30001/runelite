@@ -25,17 +25,53 @@
  */
 package net.runelite.client.plugins.chess;
 
+import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ForkJoinPool;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import javax.annotation.Nullable;
+import javax.inject.Inject;
+
+import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.*;
+import net.runelite.api.Client;
+import net.runelite.api.IndexedSprite;
+import net.runelite.api.KeyCode;
+import net.runelite.api.MenuAction;
+import net.runelite.api.MenuEntry;
+import net.runelite.api.Player;
+import net.runelite.api.Tile;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.events.*;
+import net.runelite.api.events.BeforeRender;
+import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageManager;
@@ -52,27 +88,13 @@ import net.runelite.client.plugins.chess.data.ChessMarkerPointType;
 import net.runelite.client.plugins.chess.data.ColorTileMarker;
 import net.runelite.client.plugins.chess.twitchintegration.ChatCommands;
 import net.runelite.client.plugins.chess.twitchintegration.TwitchEventRunners;
-import net.runelite.client.plugins.chess.twitchintegration.TwitchIntegration;
-import net.runelite.client.plugins.chess.twitchintegration.TwitchRedemptionInfo;
 import net.runelite.client.plugins.chess.twitchintegration.events.ChessboardDisco;
 import net.runelite.client.plugins.chess.twitchintegration.events.TwitchRedemptionEvent;
-import net.runelite.client.plugins.fps.FpsDrawListener;
+import net.runelite.client.plugins.twitch4j.TwitchIntegration;
+import net.runelite.client.ui.ClientUI;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
-
-import javax.annotation.Nullable;
-import javax.inject.Inject;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.util.List;
-import java.util.*;
-import java.util.Map.Entry;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ForkJoinPool;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Slf4j
 @PluginDescriptor(name = "Chess", description = "Chess plugin", tags = { "config", "chess" })
@@ -132,8 +154,6 @@ public class ChessPlugin extends Plugin {
 	private LocalPoint localPoint;
 	@Getter(AccessLevel.PUBLIC)
 	private WorldPoint worldPoint;
-	@Getter
-	private TwitchIntegration twitchHandler;
 	private TwitchEventRunners twitchListeners;
 	public int modIconsStart = -1;
 	private BlockingQueue<OverheadTextInfo> overheadTextQueue;
@@ -148,7 +168,7 @@ public class ChessPlugin extends Plugin {
 	private long deltaTime;
 	@Getter(AccessLevel.PUBLIC)
 	private long lastFrameTime = 0;
-
+	
 	@Override
 	protected void startUp() throws Exception {
 		lastFrameTime = System.currentTimeMillis();
@@ -179,14 +199,14 @@ public class ChessPlugin extends Plugin {
 			e.printStackTrace();
 		}
 		chatCommands = new ChatCommands(this);
+		chatCommands.init();
 	}
 
 	@Override
 	protected void shutDown() throws Exception {
 		overlayManager.remove(overlay);
-		twitchHandler.shutdown();
+		twitchListeners.shutdown();
 		points.clear();
-
 	}
 
 	void savePoints(Collection<ChessMarkerPoint> points, WorldPoint worldPoint, LocalPoint localPoint) {
@@ -314,17 +334,6 @@ public class ChessPlugin extends Plugin {
 			}
 		}
 
-		// TODO: check if is streamer
-		if (twitchHandler == null) {
-			try {
-				twitchHandler = new TwitchIntegration(config, this, overlay);
-				twitchHandler.start();
-			} catch (Exception e) {
-				e.printStackTrace();
-				twitchHandler = null;
-			}
-		}
-
 		if (event != null) {
 			if (event.getKey().equals("whiteTileColor") || event.getKey().equals("blackTileColor")) {
 				getPoints().forEach(ctm -> {
@@ -352,6 +361,8 @@ public class ChessPlugin extends Plugin {
 				threads = Runtime.getRuntime().availableProcessors();
 			overlay.mainThreadPool = new ForkJoinPool(threads);
 		}
+		
+		twitchListeners.configChanged();
 	}
 
 	@Subscribe
@@ -513,54 +524,27 @@ public class ChessPlugin extends Plugin {
 			if (updateVisuals == false) {
 				chessHandler.reset();
 			}
-			StringBuilder FENString = new StringBuilder();
-			int blankTilesCount = 0;
-			int currentCount = 0;
-			for (int y = 0; y < 10; y++) {// letters
-				for (int x = 0; x < 10; x++) {// numbers
+			char[][] pieces = new char[8][8];
+			String[][] usernames = new String[8][8];
+			//spaghetti code start, render the chessboard backwards, which is actually forwards in the chess verifier
+			for (int y = 9; y >= 0; y--) {// letters
+				for (int x = 9; x >= 0; x--) {// numbers
 					chessTiles.add(new ChessMarkerPoint(regionId, worldPoint.getRegionX() + x, worldPoint.getRegionY() + y, client.getPlane(), WhatType(x, y), WhatColor(x, y), WhatLabel(x, y)));
 					if (updateVisuals == false) {
-						if ((x >= 1 || x <= 8) && (y >= 1 && y <= 8)) {
+						if ((x >= 1 && x <= 8) && (y >= 1 && y <= 8)) {
 							List<Player> players = Stream.concat(Stream.of(client.getLocalPlayer()), client.getPlayers().stream()).filter(p -> ChessOverlay.chessPieceUsername.contains(p.getName()))
 									.collect(Collectors.toCollection(ArrayList::new));
-							boolean isEmptyTile = true;
 							for (int i = 0; i < players.size(); i++) {
 								Player player = players.get(i);
 								WorldPoint playerPoint = player.getWorldLocation();
+								//WorldPoint(x=3160, y=3501, plane=0)
 								if (playerPoint.getX() == worldPoint.getX() + x && playerPoint.getY() == worldPoint.getY() + y) {
 									char pieceType = ChessOverlay.usernameToType.getOrDefault(player.getName(), '\0');
-
-									if (currentCount == 8) {
-										if (blankTilesCount > 0) {
-											FENString.append(blankTilesCount);
-											blankTilesCount = 0;
-										}
-										FENString.append("/");
-										currentCount = 0;
-									}
-									if (pieceType == '\0') {
-										blankTilesCount++;
-										currentCount++;
-										break;
-									}
-									// notify chess engine of this piece
-									if (blankTilesCount > 0) {
-										FENString.append(blankTilesCount);
-										blankTilesCount = 0;
-									}
-									FENString.append(pieceType);
-									currentCount++;
-									if (currentCount == 8) {
-										FENString.append("/");
-										currentCount = 0;
-									}
-
+									pieces[y-1][x-1] = pieceType;
+									usernames[y-1][x-1] = player.getName();
 									// notify chess engine of this piece
 									player.setOverheadText(pieceType + "");
 									break;
-								}
-								if (isEmptyTile) {
-									blankTilesCount++;
 								}
 							}
 						}
@@ -568,10 +552,7 @@ public class ChessPlugin extends Plugin {
 				}
 			}
 			if (updateVisuals == false) {
-				if (Strings.isNullOrEmpty(FENString.toString()) == false) {
-					FENString.setLength(FENString.length() - 1);
-					chessHandler.initBaseBoard(FENString.toString());
-				}
+				chessHandler.initBaseBoard(pieces, usernames);
 			}
 		}
 

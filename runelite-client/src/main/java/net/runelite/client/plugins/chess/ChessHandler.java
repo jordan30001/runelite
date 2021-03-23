@@ -1,5 +1,9 @@
 package net.runelite.client.plugins.chess;
 
+import java.util.Arrays;
+
+import javax.inject.Inject;
+
 import com.loloof64.chess_lib_java.history.ChessHistoryNode;
 import com.loloof64.chess_lib_java.rules.GameInfo;
 import com.loloof64.chess_lib_java.rules.Move;
@@ -10,6 +14,8 @@ import com.loloof64.functional.monad.Either;
 
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Setter;
+import net.runelite.client.ui.ClientUI;
 
 public class ChessHandler {
 
@@ -21,12 +27,15 @@ public class ChessHandler {
 	private String[][] pieceUsernames;
 	@Getter(AccessLevel.PUBLIC)
 	private ChessHistoryNode history;
+	@Inject
+	private ClientUI clientUI;
+	@Getter(AccessLevel.PUBLIC)
+	@Setter(AccessLevel.PUBLIC)
+	private boolean isThisAccountMoving;
 
 	public ChessHandler(ChessPlugin plugin, ChessOverlay overlay) {
 		this.plugin = plugin;
 		this.overlay = overlay;
-
-		this.pieceUsernames = new String[8][8];
 	}
 
 	public void reset() {
@@ -34,8 +43,53 @@ public class ChessHandler {
 		position = Position.fromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").right();
 	}
 
-	public void initBaseBoard(String FENPieces) {
-		position = Position.fromFEN(FENPieces + " w KQkq - 0 1").right();
+	public void initBaseBoard(char[][] pieces, String[][] usernames) {
+		this.pieceUsernames = usernames;
+//		Position testPosition = position = Position.fromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").right();
+		StringBuilder sb = new StringBuilder();
+		int emptyCount = 0;
+		int rowCount = 0;
+		//spaghetti code start
+		//loop backwards over y pieces as they are given to us in reverse order to what the chess engine wants
+		//loop over x normally
+		for (int y = 7; y >=0; y--) {
+			for (int x = 0; x <8; x++) {
+				if (pieces[y][x] == '\0') {
+					emptyCount++;
+					if (emptyCount == 8 || rowCount == 8) {
+						sb.append(emptyCount);
+						sb.append("/");
+						emptyCount = 0;
+						continue;
+					}
+				}
+				else {
+					if(emptyCount > 0) {
+						sb.append(emptyCount);
+						emptyCount = 0;
+						rowCount++;
+						if(rowCount == 8) {
+							sb.append("/");
+							rowCount = 0;
+						}
+					}
+					sb.append(pieces[y][x]);
+					rowCount++;
+					if(rowCount == 8) {
+						sb.append("/");
+						rowCount = 0;
+					}
+				}
+			}
+		}
+		sb.setLength(sb.length() - 1);
+
+		//rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR
+		Either<Exception, Position> e = Position.fromFEN(sb.toString() + " w KQkq - 0 1");
+		if (e.isLeft()) {
+			e.left().printStackTrace();
+		}
+		position = Position.fromFEN(sb.toString() + " w KQkq - 0 1").right();
 		history = ChessHistoryNode.rootNode(position, "start", "").right();
 	}
 
@@ -48,6 +102,10 @@ public class ChessHandler {
 		Either<Exception, Position> positionMove = position.move(move);
 		if (positionMove.isRight()) {
 			position = positionMove.right();
+			if (pieceUsernames[from.rank][from.file].equals(plugin.getClient().getLocalPlayer().getName())) {
+				clientUI.forceFocus();
+				setThisAccountMoving(true);
+			}
 			pieceUsernames[to.rank][to.file] = pieceUsernames[from.rank][from.file];
 			pieceUsernames[from.rank][from.file] = null;
 			history = ChessHistoryNode.nonRootNode(history, move, "", "").right();
