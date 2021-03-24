@@ -12,6 +12,7 @@ import java.util.stream.Stream;
 
 import javax.inject.Inject;
 
+import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.twitch4j.chat.events.channel.ChannelMessageEvent;
 import com.github.twitch4j.common.enums.CommandPermission;
 import com.loloof64.chess_lib_java.rules.Position;
@@ -43,13 +44,17 @@ public class ChatCommands {
 	@Getter(AccessLevel.PUBLIC)
 	private ChessPlugin plugin;
 	private TwitchIntegration twitchHandler = TwitchIntegration.INSTANCE;
+	private OAuth2Credential credential;
 
 	public ChatCommands(ChessPlugin plugin) {
 		this.plugin = plugin;
 	}
 	
 	public void init() {
-		twitchHandler.RegisterListener(ChannelMessageEvent.class, this::onMessageEvent);
+		credential = new OAuth2Credential("twitch", plugin.getConfig().OAUthCode());
+		twitchHandler.addChatListener(credential, ChannelMessageEvent.class);
+		twitchHandler.RegisterListener(credential, ChannelMessageEvent.class, this::onMessageEvent);
+		twitchHandler.joinChannel(credential, plugin.getConfig().channelName());
 	}
 
 	public void onMessageEvent(ChannelMessageEvent event) {

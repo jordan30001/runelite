@@ -60,6 +60,7 @@ public class TwitchToConfigPlugin extends Plugin {
 
 	@Subscribe
 	public void onConfigChanged(@Nullable ConfigChanged event) {
+		if(event != null && (event.getKey().equals("shortcuts") || event.getGroup().equals("chess"))) return;
 		twitchListeners.configChanged();
 	}
 
