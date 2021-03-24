@@ -65,6 +65,13 @@ public class RuneLiteModule extends AbstractModule
 	private final boolean safeMode;
 	private final File sessionfile;
 	private final File config;
+	private final String username;
+	private final String password;
+	private final String world;
+	private final String xPos;
+	private final String yPos;
+	private final String startupTitle;
+	private final boolean customConfig;
 
 	@Override
 	protected void configure()
@@ -79,6 +86,13 @@ public class RuneLiteModule extends AbstractModule
 		bindConstant().annotatedWith(Names.named("safeMode")).to(safeMode);
 		bind(File.class).annotatedWith(Names.named("sessionfile")).toInstance(sessionfile);
 		bind(File.class).annotatedWith(Names.named("config")).toInstance(config);
+		bindConstant().annotatedWith(Names.named("username")).to(username);
+		bindConstant().annotatedWith(Names.named("password")).to(password);
+		bindConstant().annotatedWith(Names.named("world")).to(world);
+		bindConstant().annotatedWith(Names.named("xPos")).to(xPos);
+		bindConstant().annotatedWith(Names.named("yPos")).to(yPos);
+		bindConstant().annotatedWith(Names.named("startupTitle")).to(startupTitle);
+		bindConstant().annotatedWith(Names.named("customConfig")).to(customConfig);
 		bind(ScheduledExecutorService.class).toInstance(new ExecutorServiceExceptionLogger(Executors.newSingleThreadScheduledExecutor()));
 		bind(OkHttpClient.class).toInstance(okHttpClient);
 		bind(MenuManager.class);
@@ -93,11 +107,11 @@ public class RuneLiteModule extends AbstractModule
 		bind(Callbacks.class).to(Hooks.class);
 
 		bind(EventBus.class)
-			.toInstance(new EventBus());
+				.toInstance(new EventBus());
 
 		bind(EventBus.class)
-			.annotatedWith(Names.named("Deferred EventBus"))
-			.to(DeferredEventBus.class);
+				.annotatedWith(Names.named("Deferred EventBus"))
+				.to(DeferredEventBus.class);
 	}
 
 	@Provides

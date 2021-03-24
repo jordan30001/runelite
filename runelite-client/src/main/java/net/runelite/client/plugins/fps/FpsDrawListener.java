@@ -25,6 +25,8 @@
 package net.runelite.client.plugins.fps;
 
 import javax.inject.Inject;
+
+import net.runelite.api.Client;
 import net.runelite.api.events.FocusChanged;
 
 /**
@@ -47,6 +49,7 @@ public class FpsDrawListener implements Runnable
 	private final FpsConfig config;
 
 	private long targetDelay = 0;
+	private boolean clientNotInteracted;
 
 	// Often changing values
 	private boolean isFocused = true;
@@ -61,25 +64,38 @@ public class FpsDrawListener implements Runnable
 	private FpsDrawListener(FpsConfig config)
 	{
 		this.config = config;
+		this.clientNotInteracted = config.applyTargetWhenLoading();
 		reloadConfig();
 	}
+
+	@Inject
+	private Client client;
 
 	void reloadConfig()
 	{
 		lastMillis = System.currentTimeMillis();
 
-		int fps = config.limitFpsUnfocused() && !isFocused
-			? config.maxFpsUnfocused()
-			: config.maxFps();
+		int fps = config.maxFps();
+
+		if (config.limitFpsUnfocused() && (!isFocused || clientNotInteracted))
+		{
+			fps = config.maxFpsUnfocused();
+		}
 
 		targetDelay = 1000 / Math.max(1, fps);
-		
+
 		sleepDelay = targetDelay;
 
 		for (int i = 0; i < SAMPLE_SIZE; i++)
 		{
 			lastDelays[i] = targetDelay;
 		}
+	}
+
+	void setClientInteracted()
+	{
+		clientNotInteracted = false;
+		reloadConfig();
 	}
 
 	void onFocusChanged(FocusChanged event)
@@ -91,7 +107,7 @@ public class FpsDrawListener implements Runnable
 	private boolean isEnforced()
 	{
 		return config.limitFps()
-			|| (config.limitFpsUnfocused() && !isFocused);
+				|| (config.limitFpsUnfocused() && (!isFocused || clientNotInteracted));
 	}
 
 	@Override

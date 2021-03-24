@@ -29,6 +29,7 @@ import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.WorldType;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -41,9 +42,9 @@ import net.runelite.http.api.worlds.World;
 import net.runelite.http.api.worlds.WorldResult;
 
 @PluginDescriptor(
-	name = "Default World",
-	description = "Enable a default world to be selected when launching the client",
-	tags = {"home"}
+		name = "Default World",
+		description = "Enable a default world to be selected when launching the client",
+		tags = {"home"}
 )
 @Slf4j
 public class DefaultWorldPlugin extends Plugin
@@ -59,6 +60,53 @@ public class DefaultWorldPlugin extends Plugin
 
 	private int worldCache;
 	private boolean worldChangeRequired;
+
+	public static void changeWorld(int newWorld, Client client, WorldService worldService, boolean pvpAllowed)
+	{
+		int correctedWorld = newWorld < 300 ? newWorld + 300 : newWorld;
+
+		// Old School RuneScape worlds start on 301 so don't even bother trying to find lower id ones
+		// and also do not try to set world if we are already on it
+		if (correctedWorld <= 300 || client.getWorld() == correctedWorld)
+		{
+			return;
+		}
+
+		final WorldResult worldResult = worldService.getWorlds();
+
+		if (worldResult == null)
+		{
+			log.warn("Failed to lookup worlds.");
+			return;
+		}
+
+		final World world = worldResult.findWorld(correctedWorld);
+
+		if (world != null)
+		{
+			final net.runelite.api.World rsWorld = client.createWorld();
+			rsWorld.setActivity(world.getActivity());
+			rsWorld.setAddress(world.getAddress());
+			rsWorld.setId(world.getId());
+			rsWorld.setPlayerCount(world.getPlayers());
+			rsWorld.setLocation(world.getLocation());
+			rsWorld.setTypes(WorldUtil.toWorldTypes(world.getTypes()));
+
+			if (!pvpAllowed && rsWorld.getTypes().contains(WorldType.PVP))
+			{
+				log.error("Attempted to hop to a pvp world when it was disallowed");
+			}
+			else
+			{
+				client.changeWorld(rsWorld);
+				log.debug("Applied new world {}", correctedWorld);
+			}
+		}
+		else
+		{
+			log.warn("World {} not found.", correctedWorld);
+		}
+	}
 
 	@Override
 	protected void startUp() throws Exception
@@ -106,42 +154,7 @@ public class DefaultWorldPlugin extends Plugin
 		}
 
 		worldChangeRequired = false;
-		int correctedWorld = newWorld < 300 ? newWorld + 300 : newWorld;
-
-		// Old School RuneScape worlds start on 301 so don't even bother trying to find lower id ones
-		// and also do not try to set world if we are already on it
-		if (correctedWorld <= 300 || client.getWorld() == correctedWorld)
-		{
-			return;
-		}
-
-		final WorldResult worldResult = worldService.getWorlds();
-
-		if (worldResult == null)
-		{
-			log.warn("Failed to lookup worlds.");
-			return;
-		}
-
-		final World world = worldResult.findWorld(correctedWorld);
-
-		if (world != null)
-		{
-			final net.runelite.api.World rsWorld = client.createWorld();
-			rsWorld.setActivity(world.getActivity());
-			rsWorld.setAddress(world.getAddress());
-			rsWorld.setId(world.getId());
-			rsWorld.setPlayerCount(world.getPlayers());
-			rsWorld.setLocation(world.getLocation());
-			rsWorld.setTypes(WorldUtil.toWorldTypes(world.getTypes()));
-
-			client.changeWorld(rsWorld);
-			log.debug("Applied new world {}", correctedWorld);
-		}
-		else
-		{
-			log.warn("World {} not found.", correctedWorld);
-		}
+		changeWorld(newWorld, client, worldService, true);
 	}
 
 	private void applyWorld()

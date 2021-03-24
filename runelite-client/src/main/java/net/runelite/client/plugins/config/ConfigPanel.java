@@ -330,7 +330,7 @@ class ConfigPanel extends PluginPanel
 			String name = cid.getItem().name();
 			JLabel configEntryName = new JLabel(name);
 			configEntryName.setForeground(Color.WHITE);
-			configEntryName.setToolTipText("<html>" + name + ":<br>" + cid.getItem().description() + "</html>");
+			configEntryName.setToolTipText("<html>" + name + ":<br>" + cid.getItem().description() + ":<br>" + cd.getGroup().value()+ "." + cid.key() + "</html>");
 			PluginListItem.addLabelPopupMenu(configEntryName, createResetMenuItem(pluginConfig, cid));
 			item.add(configEntryName, BorderLayout.CENTER);
 

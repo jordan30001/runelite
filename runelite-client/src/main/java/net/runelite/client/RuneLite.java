@@ -33,12 +33,15 @@ import com.google.inject.Injector;
 import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
+import java.net.Authenticator;
+import java.net.PasswordAuthentication;
 import java.nio.file.Paths;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.Locale;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import javax.inject.Provider;
 import javax.inject.Singleton;
@@ -139,11 +142,21 @@ public class RuneLite
 		parser.accepts("debug", "Show extra debugging output");
 		parser.accepts("safe-mode", "Disables external plugins and the GPU plugin");
 		parser.accepts("insecure-skip-tls-verification", "Disables TLS verification");
+		parser.accepts("username", "Autofill username").withRequiredArg();
+		parser.accepts("password", "Autofill password").withRequiredArg();
+		parser.accepts("world", "Autoset the world").withRequiredArg();
+		parser.accepts("xPos", "Set the client x position when logging in").withRequiredArg();
+		parser.accepts("yPos", "Set the client y position when logging in").withRequiredArg();
+		parser.accepts("startupTitle", "Set the title name on startup for AHK use").withRequiredArg();
 
 		final ArgumentAcceptingOptionSpec<File> sessionfile = parser.accepts("sessionfile", "Use a specified session file")
 			.withRequiredArg()
 			.withValuesConvertedBy(new ConfigFileConverter())
 			.defaultsTo(DEFAULT_SESSION_FILE);
+
+		final ArgumentAcceptingOptionSpec<String> proxyInfo = parser
+				.accepts("proxy")
+				.withRequiredArg().ofType(String.class);
 
 		final ArgumentAcceptingOptionSpec<File> configfile = parser.accepts("config", "Use a specified config file")
 			.withRequiredArg()
@@ -177,6 +190,36 @@ public class RuneLite
 		{
 			final Logger logger = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
 			logger.setLevel(Level.DEBUG);
+		}
+
+		if (options.has("proxy"))
+		{
+			String[] proxy = options.valueOf(proxyInfo).split(":");
+
+			if (proxy.length >= 2)
+			{
+				System.setProperty("socksProxyHost", proxy[0]);
+				System.setProperty("socksProxyPort", proxy[1]);
+			}
+
+			if (proxy.length >= 4)
+			{
+				System.setProperty("java.net.socks.username", proxy[2]);
+				System.setProperty("java.net.socks.password", proxy[3]);
+
+				final String user = proxy[2];
+				final char[] pass = proxy[3].toCharArray();
+
+				Authenticator.setDefault(new Authenticator()
+				{
+					private final PasswordAuthentication auth = new PasswordAuthentication(user, pass);
+
+					protected PasswordAuthentication getPasswordAuthentication()
+					{
+						return auth;
+					}
+				});
+			}
 		}
 
 		Thread.setDefaultUncaughtExceptionHandler((thread, throwable) ->
@@ -237,12 +280,19 @@ public class RuneLite
 			final long start = System.currentTimeMillis();
 
 			injector = Guice.createInjector(new RuneLiteModule(
-				okHttpClient,
-				clientLoader,
-				developerMode,
-				options.has("safe-mode"),
-				options.valueOf(sessionfile),
-				options.valueOf(configfile)));
+					okHttpClient,
+					clientLoader,
+					developerMode,
+					options.has("safe-mode"),
+					options.valueOf(sessionfile),
+					options.valueOf(configfile),
+					(String) Optional.ofNullable(options.valueOf("username")).orElse(""),
+					(String) Optional.ofNullable(options.valueOf("password")).orElse(""),
+					(String) Optional.ofNullable(options.valueOf("world")).orElse(""),
+					(String) Optional.ofNullable(options.valueOf("xPos")).orElse(""),
+					(String) Optional.ofNullable(options.valueOf("yPos")).orElse(""),
+					(String) Optional.ofNullable(options.valueOf("startupTitle")).orElse(""),
+					options.has("config")));
 
 			injector.getInstance(RuneLite.class).start();
 
